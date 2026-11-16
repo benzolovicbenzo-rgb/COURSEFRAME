@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APEX EHO — Закрытая платформа аттестации старших аналитиков</title>
+  <!-- Подключение шрифта Inter и Tailwind CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* ==========================================================================
+       1. ПЕРЕМЕННЫЕ ДИЗАЙН-СИСТЕМЫ (DARK GLASSMORPHISM)
+       ========================================================================== */
+    :root {
+      --bg-deep: #050505;
+      --bg-elevated: #0a0a0a;
+      --glass-surface: rgba(255, 255, 255, 0.03);
+      --glass-surface-hover: rgba(255, 255, 255, 0.06);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-border-bright: rgba(0, 255, 0, 0.35);
+      --glass-blur: blur(16px);
+
+      --neon-green: #00ff00;
+      --neon-green-dim: rgba(0, 255, 0, 0.14);
+      --neon-green-glow: 0 0 20px rgba(0, 255, 0, 0.35), 0 0 40px rgba(0, 255, 0, 0.12);
+      --neon-text-shadow: 0 0 12px rgba(0, 255, 0, 0.75), 0 0 28px rgba(0, 255, 0, 0.35);
+
+      --danger-red: #ff2a4b;
+      --danger-glow: 0 0 25px rgba(255, 42, 75, 0.5);
+
+      --text-main: #f5f5f7;
+      --text-secondary: #9a9aa6;
+      --text-muted: #5e5e6a;
+
+      --sidebar-width: 310px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --ease-ios: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ==========================================================================
+       2. БАЗОВЫЙ СБРОС И ТИПОГРАФИКА
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Фоновые радиальные неоновые пятна */
+    .ambient-glow {
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      border-radius: 50%;
+      filter: blur(110px);
+      opacity: 0.45;
+    }
+
+    .ambient-glow--top {
+      width: 520px;
+      height: 520px;
+      background: radial-gradient(circle, rgba(0, 255, 0, 0.14) 0%, rgba(0, 0, 0, 0) 70%);
+      top: -180px;
+      right: 10%;
+    }
+
+    .ambient-glow--bottom {
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0, 255, 0, 0.09) 0%, rgba(0, 0, 0, 0) 70%);
+      bottom: -240px;
+      left: 15%;
+    }
+
+    /* Фирменный брендинг APEX EHO */
+    .brand-logo {
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .brand-logo .apex {
+      color: #ffffff;
+    }
+
+    .brand-logo .eho {
+      color: var(--neon-green);
+      text-shadow: var(--neon-text-shadow);
+    }
+
+    /* ==========================================================================
+       3. АНИМАЦИИ И ЭФФЕКТЫ ЭКРАНА
+       ========================================================================== */
+    @keyframes fadeInSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(22px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes shakeError {
+      0%, 100% { transform: translateX(0); }
+      15%, 45%, 75% { transform: translateX(-10px); }
+      30%, 60%, 90% { transform: translateX(10px); }
+    }
+
+    /* Полноэкранная вспышка при сдаче или провале теста */
+    .screen-flash {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9000;
+      opacity: 0;
+      backdrop-filter: blur(6px);
+      transition: opacity 0.35s var(--ease-ios);
+    }
+
+    .screen-flash.flash-red {
+      background: radial-gradient(circle at center, rgba(255, 42, 75, 0.28) 0%, rgba(255, 0, 30, 0.48) 100%);
+      box-shadow: inset 0 0 120px rgba(255, 42, 75, 0.75);
+      opacity: 1;
+    }
+
+    .screen-flash.flash-green {
+      background: radial-gradient(circle at center, rgba(0, 255, 0, 0.2) 0%, rgba(0, 255, 0, 0.38) 100%);
+      box-shadow: inset 0 0 120px rgba(0, 255, 0, 0.65);
+      opacity: 1;
+    }
+
+    /* ==========================================================================
+       4. ЭКРАН АВТОРИЗАЦИИ (ЗАКРЫТЫЙ ДОСТУП)
+       ========================================================================== */
+    #auth-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      background: radial-gradient(circle at 50% 35%, #0d150d 0%, var(--bg-deep) 65%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      transition: opacity 0.6s var(--ease-ios), visibility 0.6s var(--ease-ios), transform 0.6s var(--ease-ios);
+    }
+
+    #auth-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(1.04);
+      pointer-events: none;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--glass-surface);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 48px 36px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(0, 255, 0, 0.05);
+      animation: fadeInSlideUp 0.7s var(--ease-ios);
+    }
+
+    .auth-badge {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--neon-green);
+      background: var(--neon-green-dim);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+
+    .auth-card .brand-logo {
+      font-size: 34px;
+      margin-bottom: 12px;
+      justify-content: center;
+    }
+
+    .auth-subtitle {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .auth-input-wrap {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-size: 15px;
+      font-family: monospace;
+      letter-spacing: 0.08em;
+      text-align: center;
+      outline: none;
+      transition: all 0.25s var(--ease-ios);
+    }
+
+    .auth-input::placeholder {
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      letter-spacing: normal;
+    }
+
+    .auth-input:focus {
+      border-color: var(--neon-green);
+      box-shadow: 0 0 18px rgba(0, 255, 0, 0.2);
+      background: rgba(0, 255, 0, 0.03);
+    }
+
+    .auth-input.input-error {
+      animation: shakeError 0.45s var(--ease-ios);
+      border-color: var(--danger-red) !important;
+      background: rgba(255, 42, 75, 0.12) !important;
+      box-shadow: var(--danger-glow) !important;
+      color: #ffb3be;
+    }
+
+    .auth-error-msg {
+      min-height: 20px;
+      font-size: 13px;
+      color: var(--danger-red);
+      margin-bottom: 12px;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .auth-error-msg.visible {
+      opacity: 1;
+    }
+
+    /* Универсальная неоновая кнопка */
+    .btn-neon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px 28px;
+      background: rgba(0, 255, 0, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(0, 255, 0, 0.45);
+      border-radius: var(--radius-md);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      backdrop-filter: var(--glass-blur);
+      transition: all 0.3s var(--ease-ios);
+      box-shadow: 0 0 18px rgba(0, 255, 0, 0.18);
+      text-decoration: none;
+    }
+
+    .btn-neon:hover {
+      background: rgba(0, 255, 0, 0.22);
+      border-color: var(--neon-green);
+      box-shadow: var(--neon-green-glow);
+      transform: translateY(-2px);
+    }
+
+    .btn-neon:active {
+      transform: translateY(0);
+    }
+
+    /* ==========================================================================
+       5. ОСНОВНОЙ ЛЕЙАУТ ДАШБОРДА (SIDEBAR + CONTENT)
+       ========================================================================== */
+    #app-dashboard {
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.6s var(--ease-ios);
+    }
+
+    #app-dashboard.visible {
+      opacity: 1;
+    }
+
+    /* Боковая панель навигации */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: rgba(10, 10, 10, 0.72);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-right: 1px solid var(--glass-border);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      padding: 28px 20px;
+      transition: transform 0.35s var(--ease-ios);
+    }
+
+    .sidebar-header {
+      padding: 0 10px 24px;
+      border-bottom: 1px solid var(--glass-border);
+      margin-bottom: 20px;
+    }
+
+    .sidebar-header .brand-logo {
+      font-size: 24px;
+    }
+
+    .sidebar-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--neon-green);
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+
+    /* Прогресс-бар в сайдбаре */
+    .progress-box {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 20px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .progress-meta strong {
+      color: var(--neon-green);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--neon-green);
+      box-shadow: 0 0 12px var(--neon-green);
+      transition: width 0.5s var(--ease-ios);
+    }
+
+    /* Список модулей */
+    .module-nav {
+      list-style: none;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 4px;
+    }
+
+    .module-nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 14px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s var(--ease-ios);
+      text-align: left;
+    }
+
+    .module-nav-item:hover:not(.locked) {
+      background: var(--glass-surface-hover);
+      border-color: var(--glass-border);
+    }
+
+    .module-nav-item.active {
+      background: rgba(0, 255, 0, 0.09);
+      border-color: rgba(0, 255, 0, 0.4);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.12);
+    }
+
+    .module-nav-item.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+      color: var(--text-secondary);
+    }
+
+    .module-nav-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+
+    .module-index {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+    }
+
+    .module-nav-item.active .module-index {
+      color: var(--neon-green);
+    }
+
+    .module-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .module-icon {
+      font-size: 14px;
+      margin-left: 10px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      padding-top: 16px;
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn-logout {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+
+    .btn-logout:hover {
+      color: var(--danger-red);
+    }
+
+    /* Мобильная шапка с гамбургером */
+    .mobile-topbar {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 950;
+      padding: 0 20px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hamburger-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-sm);
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .hamburger-btn span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text-main);
+      transition: all 0.3s var(--ease-ios);
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 990;
+    }
+
+    /* ==========================================================================
+       6. КОНТЕНТНАЯ ОБЛАСТЬ И СТЕКЛЯННЫЕ КАРТОЧКИ
+       ========================================================================== */
+    .main-area {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      padding: 56px 40px 100px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .content-container {
+      width: 100%;
+      max-width: 860px;
+      animation: fadeInSlideUp 0.55s var(--ease-ios);
+    }
+
+    .glass-card {
+      background: var(--glass-surface);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 42px;
+      margin-bottom: 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .module-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--neon-green);
+      background: var(--neon-green-dim);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      padding: 6px 14px;
+      border-radius: 999px;
+      margin-bottom: 18px;
+    }
+
+    .module-title {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    .longread h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 32px 0 14px;
+      letter-spacing: -0.01em;
+    }
+
+    .longread p {
+      color: #d2d2dc;
+      margin-bottom: 18px;
+      font-size: 16px;
+    }
+
+    .longread ul {
+      margin: 0 0 22px 20px;
+      color: #d2d2dc;
+      list-style-type: disc;
+    }
+
+    .longread li {
+      margin-bottom: 10px;
+    }
+
+    .longread strong {
+      color: #ffffff;
+    }
+
+    /* Строгий выделенный блок с обязательным заданием */
+    .strict-requirement-box {
+      margin: 32px 0;
+      padding: 28px;
+      background: radial-gradient(circle at top left, rgba(0, 255, 0, 0.12), rgba(255, 255, 255, 0.02) 70%);
+      border: 1px solid rgba(0, 255, 0, 0.45);
+      border-left: 4px solid var(--neon-green);
+      border-radius: var(--radius-md);
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.08);
+    }
+
+    .strict-requirement-header {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--neon-green);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .platform-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .platform-pill {
+      padding: 10px 18px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(0, 255, 0, 0.4);
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(0, 255, 0, 0.15);
+    }
+
+    /* ==========================================================================
+       7. СЕКЦИЯ ЖЕСТКОГО ТЕСТИРОВАНИЯ
+       ========================================================================== */
+    .test-trigger-wrap {
+      margin-top: 36px;
+      padding-top: 28px;
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .quiz-drawer {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.75s var(--ease-ios), opacity 0.45s var(--ease-ios), margin-top 0.45s var(--ease-ios);
+    }
+
+    .quiz-drawer.open {
+      max-height: 8000px;
+      opacity: 1;
+      margin-top: 28px;
+    }
+
+    .question-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .question-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 16px;
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 13px 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      transition: all 0.2s var(--ease-ios);
+      font-size: 14px;
+      color: #d2d2dc;
+    }
+
+    .option-label:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .option-label input[type="radio"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--text-secondary);
+      border-radius: 50%;
+      margin-top: 2px;
+      flex-shrink: 0;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .option-label input[type="radio"]:checked {
+      border-color: var(--neon-green);
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+    }
+
+    .option-label input[type="radio"]:checked::after {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--neon-green);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* ==========================================================================
+       8. ФИНАЛЬНАЯ ВОРОНКА (МОДУЛЬ 8)
+       ========================================================================== */
+    .funnel-hero {
+      text-align: center;
+      padding: 52px 36px;
+      background: radial-gradient(circle at 50% 0%, rgba(0, 255, 0, 0.16), rgba(255, 255, 255, 0.02) 70%);
+      border: 1px solid rgba(0, 255, 0, 0.4);
+    }
+
+    .funnel-quote {
+      font-size: 20px;
+      font-weight: 500;
+      color: #ffffff;
+      max-width: 680px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+
+    .funnel-condition {
+      display: inline-block;
+      padding: 14px 24px;
+      background: rgba(0, 255, 0, 0.07);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: var(--radius-md);
+      color: #d8ffd8;
+      font-size: 14px;
+      margin-bottom: 36px;
+    }
+
+    .funnel-cta-group {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-top: 12px;
+    }
+
+    .btn-cert,
+    .btn-deposit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 26px;
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      text-transform: uppercase;
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      transition: all 0.35s var(--ease-ios);
+    }
+
+    .btn-cert {
+      background: rgba(255, 255, 255, 0.05);
+      color: #ffffff;
+      border: 1px solid rgba(0, 255, 0, 0.5);
+      box-shadow: 0 0 22px rgba(0, 255, 0, 0.18);
+    }
+
+    .btn-cert:hover {
+      background: rgba(0, 255, 0, 0.16);
+      border-color: var(--neon-green);
+      box-shadow: var(--neon-green-glow);
+      transform: translateY(-3px);
+    }
+
+    .btn-deposit {
+      background: rgba(0, 255, 0, 0.18);
+      color: #ffffff;
+      border: 1px solid var(--neon-green);
+      box-shadow: var(--neon-green-glow);
+    }
+
+    .btn-deposit:hover {
+      background: rgba(0, 255, 0, 0.3);
+      box-shadow: 0 0 32px rgba(0, 255, 0, 0.65), 0 0 60px rgba(0, 255, 0, 0.28);
+      transform: translateY(-3px);
+    }
+
+    /* ==========================================================================
+       9. МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТА ТЕСТА
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 8000;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s var(--ease-ios);
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(14, 14, 16, 0.92);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 36px 32px;
+      text-align: center;
+      transform: translateY(20px) scale(0.96);
+      transition: transform 0.35s var(--ease-ios);
+    }
+
+    .modal-overlay.active .modal-box {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-box.modal-error {
+      border-color: rgba(255, 42, 75, 0.55);
+      box-shadow: 0 20px 60px rgba(255, 42, 75, 0.25);
+    }
+
+    .modal-box.modal-success {
+      border-color: rgba(0, 255, 0, 0.55);
+      box-shadow: 0 20px 60px rgba(0, 255, 0, 0.22);
+    }
+
+    .modal-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .modal-text {
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-bottom: 28px;
+    }
+
+    /* ==========================================================================
+       10. АДАПТИВНОСТЬ (MOBILE & TABLET)
+       ========================================================================== */
+    @media (max-width: 960px) {
+      .mobile-topbar {
+        display: flex;
+      }
+
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .sidebar-backdrop.open {
+        display: block;
+      }
+
+      .main-area {
+        margin-left: 0;
+        padding: 92px 18px 72px;
+      }
+
+      .glass-card {
+        padding: 26px 20px;
+      }
+
+      .module-title {
+        font-size: 24px;
+      }
+
+      .funnel-cta-group {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Фоновые неоновые градиенты -->
+  <div class="ambient-glow ambient-glow--top"></div>
+  <div class="ambient-glow ambient-glow--bottom"></div>
+
+  <!-- Слой вспышки для жесткого тестирования -->
+  <div id="screen-flash" class="screen-flash"></div>
+
+  <!-- ==========================================================================
+       ЭКРАН АВТОРИЗАЦИИ
+       ========================================================================== -->
+  <section id="auth-screen">
+    <div class="auth-card">
+      <span class="auth-badge">Closed Intelligence Contour</span>
+      <div class="brand-logo">
+        <span class="apex">APEX</span><span class="eho">EHO</span>
+      </div>
+      <p class="auth-subtitle">Терминал строгой аттестации старших аналитиков. Введите криптографический ключ доступа.</p>
+
+      <form id="auth-form" autocomplete="off">
+        <div class="auth-input-wrap">
+          <input
+            type="password"
+            id="auth-password"
+            class="auth-input"
+            placeholder="Ключ доступа..."
+            required
+          />
+        </div>
+        <div id="auth-error" class="auth-error-msg">Отказано в доступе. Неверный протокол авторизации.</div>
+        <button type="submit" class="btn-neon">Войти</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       ОСНОВНОЙ ДАШБОРД ПЛАТФОРМЫ
+       ========================================================================== -->
+  <div id="app-dashboard">
+    <!-- Мобильный хедер -->
+    <header class="mobile-topbar">
+      <div class="brand-logo">
+        <span class="apex">APEX</span><span class="eho">EHO</span>
+      </div>
+      <button id="hamburger-btn" class="hamburger-btn" aria-label="Меню">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </header>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+    <!-- Боковое меню навигации -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <span class="apex">APEX</span><span class="eho">EHO</span>
+        </div>
+        <div class="sidebar-status">
+          <span class="status-dot"></span>
+          <span>Контур аттестации активен</span>
+        </div>
+      </div>
+
+      <div class="progress-box">
+        <div class="progress-meta">
+          <span>Допуск к ядру</span>
+          <strong id="progress-label">0 / 7</strong>
+        </div>
+        <div class="progress-track">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <ul id="module-nav" class="module-nav">
+        <!-- Генерируется динамически через JS -->
+      </ul>
+
+      <div class="sidebar-footer">
+        <span>v4.8 PROD</span>
+        <button id="reset-session-btn" class="btn-logout" title="Выйти и сбросить сессию">Сбросить контур</button>
+      </div>
+    </aside>
+
+    <!-- Контентная область -->
+    <main class="main-area">
+      <div id="content-root" class="content-container">
+        <!-- Контент текущего модуля рендерится сюда -->
+      </div>
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       МОДАЛЬНОЕ ОКНО ОБРАТНОЙ СВЯЗИ
+       ========================================================================== -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div id="modal-box" class="modal-box">
+      <div id="modal-icon" class="modal-icon">⚠️</div>
+      <h3 id="modal-title" class="modal-title">Статус проверки</h3>
+      <p id="modal-text" class="modal-text"></p>
+      <button id="modal-close-btn" class="btn-neon">Принято</button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * ЯДРО ПРИЛОЖЕНИЯ APEX EHO (STATE MANAGEMENT, CONTENT & HARDCORE TESTING)
+     * ============================================================================
+     */
+    (function () {
+      'use strict';
+
+      // Константы безопасности и ключей хранения в localStorage
+      const ACCESS_PASSKEY = 'APEXEHO_FUTURE2048';
+      const STORAGE_KEY = 'APEX_EHO_STATE_V1';
+
+      /**
+       * База данных 8 образовательных модулей (Полностью обновленная академическая версия)
+       */
+      const MODULES_DATA = [
+        {
+          id: 1,
+          title: 'Фундаментальная база распределенных реестров (Web3) и децентрализация архитектуры данных',
+          shortTitle: 'База Web3 и Реестры',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Забудьте всё, что вы читали в популярных блогах. Финансовые и информационные рынки не прощают когнитивных искажений, инфантилизма и поверхностного взгляда на архитектуру данных. Статистика неумолима: <strong>99% непрофессионалов статистически обречены на потерю капитала из-за отсутствия дисциплины</strong> и непонимания того, как устроена инфраструктура, в которую они заводят ликвидность. В кризисной аналитике выживают только люди с холодным математическим расчетом, способные видеть за красивым пользовательским интерфейсом детерминированные алгоритмы, криптографические примитивы и жесткую теорию игр.</p>
+
+              <h3>1. Крах централизованной парадигмы и переход к одноранговой репликации</h3>
+              <p>Классическая архитектура Web2 строится вокруг клиент-серверной модели с единой точкой отказа — <strong>SPOF (Single Point of Failure)</strong>. Когда данные о балансах, деривативах, праве собственности и маржинальном обеспечении хранятся в закрытой реляционной базе данных одного корпоративного контрагента, аналитик находится в полной зависимости от чужой воли. Любой технический сбой дата-центра, несанкционированное изменение записей администратором или принудительная заморозка шлюза мгновенно обнуляют доступ к активам. Децентрализованная архитектура Web3 решает эту фундаментальную уязвимость путем замены доверия к институту на <strong>математическую верификацию</strong> в одноранговой сети (Peer-to-Peer), где идентичная копия канонического состояния реестра (State) синхронно хранится на тысячах независимых узлов (нод).</p>
+
+              <h3>2. Задача византийских генералов и стоимость консенсуса</h3>
+              <p>В распределенной среде, где участники не знают друг друга и часть узлов может действовать злонамеренно (искажать транзакции, задерживать пакеты данных или пытаться провести двойное расходование средств — <strong>Double Spending</strong>), возникает классическая «Задача византийских генералов». Чтобы сеть обладала византийской отказоустойчивостью (<strong>BFT — Byzantine Fault Tolerance</strong>), протокол обязан гарантировать математическое согласие большинства честных узлов относительно единой истории блоков, пока доля скомпрометированных участников не превышает критический порог (в классических BFT-системах — менее одной трети от общего числа валидаторов).</p>
+
+              <p>Достижение консенсуса никогда не бывает бесплатным: за безопасность реестра система платит либо колоссальными термодинамическими затратами в алгоритме <strong>Proof-of-Work (PoW)</strong>, где майнеры соревнуются в переборе криптографического параметра Nonce, либо заморозкой капитала в <strong>Proof-of-Stake (PoS)</strong>. В архитектуре PoS валидатор вносит собственные активы в качестве своеобразного <strong>маржинального обеспечения</strong> честности: любая попытка подписать противоречивый блок или саботировать работу сети приводит к активации механизма <strong>слэшинга (Slashing)</strong> — принудительной алгоритмической конфискации (ликвидации) части или всего заблокированного стейка.</p>
+
+              <h3>3. Криптографический фундамент: хеш-функции, лавинный эффект и деревья Меркла</h3>
+              <p>Неизменяемость (Immutability) блокчейна держится на односторонних криптографических хеш-функциях, таких как <strong>SHA-256</strong> или <strong>Keccak-256</strong>. Эти функции преобразуют массив входящих данных произвольной длины в битовую строку фиксированного размера (дайджест). Ключевое свойство криптографического хеширования — <strong>лавинный эффект</strong>: изменение даже одного бита, одной запятой в истории транзакций на уровне старого блока приводит к радикальному, непредсказуемому изменению итогового хеша. Поскольку каждый последующий блок содержит в своем заголовке хеш предыдущего родительского блока, попытка задним числом фальсифицировать запись разрушит всю криптографическую цепь вплоть до текущего состояния.</p>
+
+              <p>Чтобы аналитическим системам и «легким клиентам» (Light Nodes) не приходилось скачивать терабайты архивных данных для проверки одной-единственной операции, транзакции внутри блока упаковываются в бинарное <strong>дерево Меркла (Merkle Tree)</strong>. Хеши отдельных транзакций попарно объединяются и снова хешируются, пока на вершине пирамиды не образуется единый корневой хеш — <strong>Merkle Root</strong>. Это позволяет математически доказать факт включения транзакции в блок (Merkle Proof) со сложностью <strong>O(log n)</strong>, затрачивая миллисекунды вместо часов.</p>
+
+              <h3>4. Асимметричная криптография и жестокость персональной ответственности</h3>
+              <p>В децентрализованных реестрах не существует понятий «аккаунт», «пароль» или «служба техподдержки банка». Доступ к ликвидности регулируется асимметричной криптографией на эллиптических кривых (например, стандарт <strong>ECDSA</strong> на кривой secp256k1 или Ed25519). Участник владеет парой ключей: закрытым (приватным) ключом, который генерируется из энтропии (мнемонической seed-фразы), и вычисляемым из него публичным ключом, производным от которого выступает адрес в сети. Приватный ключ создает цифровую подпись транзакции, подтверждающую право распоряжения активами без раскрытия самого ключа в открытом эфире. Запомните аксиому: потеря приватного ключа или подписание вредоносного разрешения означает мгновенную и необратимую потерю капитала. Рынок не примет ваших апелляций.</p>
+
+              <h3>5. Детерминизм смарт-контрактов и экономика вычислительного газа</h3>
+              <p>Переход от распределенной бухгалтерской книги первого поколения к программируемым финансам стал возможен благодаря внедрению <strong>смарт-контрактов</strong> — неизменяемых фрагментов программного кода, исполняемых внутри изолированной виртуальной машины (такой как <strong>EVM — Ethereum Virtual Machine</strong> или <strong>TVM</strong>). Смарт-контракт — это автономный цифровой агент: он удерживает ликвидность, проверяет условия, рассчитывает спред, управляет деривативами и принудительно вызывает ликвидацию позиций при падении обеспечения ниже порога. Поскольку виртуальная машина является Тьюринг-полной, для защиты сети от бесконечных циклов (проблема остановки Тьюринга) и DDoS-атак каждая элементарная операция процессора (опкод) тарифицируется в единицах вычислительной работы — <strong>газе (Gas)</strong>. Если лимит газа (Gas Limit), выделенный инициатором транзакции, исчерпывается до завершения алгоритма, происходит откат состояния (<strong>Revert</strong>): все изменения аннулируются, но комиссия за уже затраченные ресурсы валидаторов списывается безвозвратно.</p>
+
+              <h3>6. Мемпул, «темный лес» MEV и микроструктура включения транзакций</h3>
+              <p>Дилетанты полагают, что отправленная транзакция сразу попадает в блокчейн. В реальности до включения в блок она поступает в публичный зал ожидания — <strong>мемпул (Mempool)</strong>. Это зона жесткой дарвиновской конкуренции. Валидаторы и сборщики блоков (Builders) сортируют очередь транзакций не по времени их поступления, а по размеру предложенной приоритетной комиссии (Priority Fee). Здесь в игру вступает понятие <strong>MEV (Maximal Extractable Value)</strong> — максимальной извлекаемой стоимости. Алгоритмические боты-хищники непрерывно сканируют мемпул: обнаружив крупный рыночный ордер неопытного участника с широким допуском проскальзывания, бот выставляет собственную транзакцию с более высоким газом строго перед жертвой (<strong>Front-running</strong>) и продает актив сразу после неё (<strong>Back-running</strong>). Эта механика называется «сэндвич-атакой» (Sandwich Attack): жертва получает исполнение по худшей цене, искусственно оплачивая расширенный спред из собственного кармана.</p>
+
+              <h3>7. Проблема оракулов и архитектурная трилемма</h3>
+              <p>Поскольку виртуальная машина блокчейна обязана быть строго детерминированной (каждая нода в любой точке планеты при прогоне истории с первого блока должна прийти к одному и тому же биту результата), смарт-контракт технически изолирован от внешнего мира и не может самостоятельно сделать HTTP-запрос к внешнему API биржи. Возникает <strong>«Проблема оракулов» (Oracle Problem)</strong>: как безопасно передать в смарт-контракт внешние котировки для расчета маржинального обеспечения или экспирации деривативов? Использование централизованного оракула возвращает нас к единой точке отказа. Поэтому промышленные протоколы используют децентрализованные сети оракулов, агрегирующие данные из десятков независимых источников ликвидности.</p>
+
+              <p>В завершение первого теоретического блока зафиксируйте в памяти <strong>Трилемму блокчейна</strong>, сформулированную Виталиком Бутериным: ни одна распределенная система на базовом уровне (Layer 1) не способна одновременно максимизировать все три свойства — <strong>Децентрализацию, Безопасность и Масштабируемость (пропускную способность)</strong>. Усиление любых двух параметров неизбежно достигается за счет компромисса в третьем. Аналитик, который не проверяет архитектурные компромиссы сети перед аллокацией капитала, становится донором ликвидности для тех, кто читает документацию и исходный код.</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">⚡ Директива обязательной инициализации</div>
+                <p style="margin-bottom: 8px; color: #ffffff;">Академическая теория мертва без инструментальной верификации в полевых условиях. Перед прохождением рубежного теста из 15 вопросов каждый курсант обязан развернуть и верифицировать изолированные тестовые среды (Sandbox Environments) для парсинга ончейн-метаданных, оценки глубины ликвидности и мониторинга транзакционных графов на следующих трех площадках:</p>
+                <div class="platform-badges">
+                  <span class="platform-pill">OpenSea</span>
+                  <span class="platform-pill">GetGems</span>
+                  <span class="platform-pill">Cryptos</span>
+                </div>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Какова фундаментальная архитектурная уязвимость классических систем Web2, которую устраняет одноранговая репликация состояния в Web3?',
+              options: [
+                'Наличие единой точки отказа — SPOF (Single Point of Failure) в лице централизованного сервера и базы данных контрагента',
+                'Невозможность использования графических интерфейсов в браузере',
+                'Избыточное количество независимых узлов, проверяющих каждую транзакцию'
+              ],
+              correct: 0
+            },
+            {
+              q: '2. Какую фундаментальную проблему теории распределенных вычислений решают алгоритмы консенсуса в присутствии потенциально нечестных узлов и сетевых задержек?',
+              options: [
+                'Задачу коммивояжера при маршрутизации оптоволоконного трафика',
+                'Задачу византийских генералов (обеспечение византийской отказоустойчивости — BFT)',
+                'Проблему сжатия растровых изображений без потери качества'
+              ],
+              correct: 1
+            },
+            {
+              q: '3. Какой экономический механизм наказания применяется к валидатору в сетях Proof-of-Stake (PoS) за попытку подписать противоречивый блок или атаковать консенсус?',
+              options: [
+                'Слэшинг (Slashing) — принудительная алгоритмическая конфискация части или всего заблокированного стейка (маржинального обеспечения)',
+                'Временное снижение скорости интернет-соединения узла провайдером',
+                'Отправка устного предупреждения от службы поддержки блокчейна'
+              ],
+              correct: 0
+            },
+            {
+              q: '4. Как называется свойство криптографических хеш-функций (SHA-256, Keccak-256), при котором изменение даже одного бита входных данных радикально меняет итоговый дайджест?',
+              options: [
+                'Эффект линейной интерполяции',
+                'Лавинный эффект',
+                'Квантовая декогеренция'
+              ],
+              correct: 1
+            },
+            {
+              q: '5. Какую вычислительную сложность обеспечивает бинарное дерево Меркла (Merkle Tree) при проверке факта включения отдельной транзакции в блок без скачивания всего архива сети?',
+              options: [
+                'Экспоненциальную сложность O(2^n)',
+                'Логарифмическую сложность O(log n)',
+                'Факториальную сложность O(n!)'
+              ],
+              correct: 1
+            },
+            {
+              q: '6. Какой криптографический стандарт асимметричного шифрования на эллиптических кривых используется для создания цифровых подписей транзакций без раскрытия приватного ключа?',
+              options: [
+                'Симметричный алгоритм Цезаря со сдвигом алфавита',
+                'ECDSA (или Ed25519) на базе пары из приватного и публичного ключей',
+                'Протокол передачи гипертекста HTTP/1.1'
+              ],
+              correct: 1
+            },
+            {
+              q: '7. Для какой архитектурной цели в Тьюринг-полных виртуальных машинах (EVM / TVM) введена тарификация каждого опкода в единицах «газа» (Gas)?',
+              options: [
+                'Для защиты распределенной сети от бесконечных циклов (проблема остановки Тьюринга) и ресурсных DDoS-атак',
+                'Для оплаты охлаждения мониторов розничных трейдеров',
+                'Для автоматической конвертации всех токенов в фиатные валюты'
+              ],
+              correct: 0
+            },
+            {
+              q: '8. Что происходит в виртуальной машине блокчейна, если выделенный пользователем лимит газа (Gas Limit) заканчивается до полного выполнения кода смарт-контракта?',
+              options: [
+                'Контракт продолжает выполняться бесплатно за счет средств валидаторов',
+                'Происходит откат состояния (Revert) до исходного, но комиссия за уже выполненные вычисления списывается безвозвратно',
+                'Блокчейн полностью останавливает генерацию новых блоков на 24 часа'
+              ],
+              correct: 1
+            },
+            {
+              q: '9. Где именно находятся подписанные пользователями транзакции до момента их включения валидатором в канонический блок?',
+              options: [
+                'В публичном зале ожидания неподтвержденных транзакций — мемпуле (Mempool)',
+                'В локальном кэше браузера без отправки в одноранговую сеть',
+                'На резервном FTP-сервере центрального банка'
+              ],
+              correct: 0
+            },
+            {
+              q: '10. По какому приоритетному критерию сборщики блоков и валидаторы сортируют очередь транзакций из мемпула при формировании нового блока?',
+              options: [
+                'В строго алфавитном порядке публичных адресов отправителей',
+                'По размеру предложенной приоритетной комиссии (Priority Fee / цены газа)',
+                'По возрасту аккаунта пользователя в социальных сетях'
+              ],
+              correct: 1
+            },
+            {
+              q: '11. В чем заключается механика хищнической «сэндвич-атаки» (Sandwich Attack) в рамках извлечения MEV (Maximal Extractable Value)?',
+              options: [
+                'Бот ставит транзакцию покупки с повышенным газом перед ордером жертвы (Front-running) и продает актив сразу после него (Back-running), захватывая проскальзывание',
+                'Валидатор удаляет закрытые ключи пользователя с его аппаратного кошелька',
+                'Маркет-мейкер бесплатно раздает ликвидность всем участникам пула'
+              ],
+              correct: 0
+            },
+            {
+              q: '12. Почему смарт-контракт внутри блокчейна не может самостоятельно выполнить прямой HTTP-запрос к внешнему веб-сайту для получения биржевых котировок?',
+              options: [
+                'Из-за требования строгого детерминизма: каждый узел при повторном прогоне истории обязан получить идентичный до бита результат состояния',
+                'Потому что язык программирования смарт-контрактов не поддерживает работу с числами',
+                'Из-за отсутствия подключения валидаторов к сети Интернет'
+              ],
+              correct: 0
+            },
+            {
+              q: '13. Как называется архитектурная проблема безопасной доставки внешних внецепочечных (off-chain) данных о котировках в детерминированный смарт-контракт для расчета ликвидаций и деривативов?',
+              options: [
+                'Проблема оракулов (Oracle Problem)',
+                'Парадокс Ферми',
+                'Ошибка сегментации оперативной памяти'
+              ],
+              correct: 0
+            },
+            {
+              q: '14. Какие три свойства составляют классическую «Трилемму блокчейна» Виталика Бутерина, из которых на базовом уровне (Layer 1) невозможно одновременно максимизировать все три?',
+              options: [
+                'Дизайн, Маркетинг и PR-охваты',
+                'Децентрализация, Безопасность и Масштабируемость (пропускная способность)',
+                'Анонимность, Уклонение от комиссий и Ручное редактирование истории'
+              ],
+              correct: 1
+            },
+            {
+              q: '15. На каких трех платформах курсант обязан развернуть и верифицировать изолированные тестовые среды (Sandbox Environments) согласно директиве первого модуля?',
+              options: [
+                'OpenSea, GetGems, Cryptos',
+                'Steam, EpicGames, Roblox',
+                'PayPal, Revolut, Stripe'
+              ],
+              correct: 0
+            }
+          ]
+        },
+        {
+          id: 2,
+          title: 'Цифровая редкость и технология NFT: спекулятивный шум против фундаментальной ценности смарт-контрактов',
+          shortTitle: 'NFT и Цифровая редкость',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Переходим ко второму уровню отсева. Если при аббревиатуре NFT (Non-Fungible Token) ваше сознание рисует спекулятивные картинки с приматами — вы мыслите как толпа, а толпа на финансовых рынках выполняет функцию кормовой базы. Напоминаю базовый постулат нашего курса: <strong>99% непрофессионалов статистически обречены на потерю капитала из-за отсутствия дисциплины</strong> и неспособности отличить маркетинговую оболочку от базовой технологии. Точно так же <strong>99% визуального цифрового арта на рынке NFT представляет собой информационный и спекулятивный мусор</strong> с нулевой внутренней стоимостью, тогда как оставшийся 1% — это фундаментальная криптографическая революция в учете прав собственности, сложных деривативов и программируемой ликвидности.</p>
+
+              <h3>1. Математическая природа взаимозаменяемости: ERC-20 против ERC-721 и TEP-62</h3>
+              <p>В классической экономике и базовых протоколах блокчейна активы делятся на взаимозаменяемые (Fungible) и невзаимозаменяемые (Non-Fungible). Стандартные токены (например, <strong>ERC-20</strong> в сетях EVM или Jettons в TON) полностью однородны: одна единица валюты в вашем кошельке неотличима от такой же единицы в стакане ордеров биржи. Это позволяет агрегировать их в единые пулы ликвидности с минимальным спредом. Напротив, стандарты <strong>ERC-721</strong>, гибридный стандарт пакетных передач <strong>ERC-1155</strong> и стандарт <strong>TEP-62</strong> (в архитектуре TON) вводят понятие криптографической уникальности. Каждый токен внутри смарт-контракта обладает неповторимым идентификатором <strong>tokenId</strong>. На уровне реестра владение NFT — это запись в таблице состояний смарт-контракта, связывающая конкретный публичный адрес с уникальной парой <code>(Contract Address + tokenId)</code>.</p>
+
+              <h3>2. Иллюзия владения и уязвимость хранения метаданных</h3>
+              <p>Холодный математический расчет требует от аналитика первым делом заглянуть в исходный код смарт-контракта и проверить метод <code>tokenURI</code>. Поскольку хранение тяжелых медиафайлов непосредственно в памяти блокчейна (On-chain) стоит астрономических сумм газа, сам токен в 99% случаев содержит лишь текстовую ссылку на внешний JSON-файл с метаданными и изображением. И здесь кроется фатальная ловушка для дилетантов.</p>
+
+              <p>Если ссылка <code>tokenURI</code> ведет на обычный централизованный веб-сервер (HTTP/HTTPS, например, корпоративный облачный хостинг AWS), то ваше «право собственности» фиктивно: администратор сервера может в любую секунду подменить файл или отключить домен за неуплату, превратив ваш актив в ошибку 404. Истинная цифровая редкость существует только тогда, когда метаданные зафиксированы либо полностью ончейн (например, в виде векторной графики SVG внутри контракта), либо в децентрализованных протоколах с контентной адресацией — <strong>IPFS (InterPlanetary File System)</strong> или перманентном хранилище <strong>Arweave</strong>. В IPFS адрес файла (<strong>CID — Content Identifier</strong>) является криптографическим хешем его содержимого: никто во Вселенной не может изменить картинку или параметры контракта, не изменив сам CID.</p>
+
+              <h3>3. Почему 99% коллекций обесцениваются: микроструктура неликвидности</h3>
+              <p>Почему абсолютное большинство розничных спекулянтов разоряется на покупке визуальных коллекций? Причина лежит в микроструктуре рынка и асимметрии ликвидности. На рынке ликвидных фьючерсов или спотовых пар существует плотный двусторонний <strong>стакан ордеров (Order Book)</strong> с тысячами лимитных заявок на покупку (Bid) и продажу (Ask), где спред составляет сотые доли процента. Рынок NFT устроен иначе: это рынок с дискретной, фрагментированной ликвидностью.</p>
+
+              <p>Неопытный участник смотрит на метрику <strong>Floor Price</strong> (минимальная цена выставленного на продажу токена коллекции) и умножает её на количество своих активов, воображая себя богачом. Но рынки не прощают когнитивных искажений! Floor Price — это цена предложения (Ask), по которой никто в данный момент не обязан у вас покупать. Реальная мгновенная ликвидность определяется глубиной встречных лимитных бидов на покупку (<strong>Collection Bids / Top Trait Offers</strong>). Когда эйфория спадает, стакан бидов пустеет, спред между лучшим предложением продажи и реальным спросом расширяется до 40–80%, и попытка продать хотя бы десяток токенов обрушивает цену коллекции в спираль неликвидности.</p>
+
+              <h3>4. Анатомия манипуляций: Wash Trading и искусственный объем</h3>
+              <p>В отсутствие строгого регулирования создатели пустых спекулятивных проектов используют уязвимость человеческой психики — склонность ориентироваться на «объем торгов» как на доказательство ценности. Для этого применяется механика <strong>Wash Trading (фиктивной циклической торговли)</strong>. Манипулятор разворачивает сеть из десятков аффилированных кошельков (Sybil-кластер) и начинает гонять один и тот же NFT по кругу между собственными адресами по завышенным ценам, зачастую на площадках с нулевой комиссией или с возвратом комиссий в нативных токенах. На аналитических дашбордах рисуются миллионные обороты. Непрофессионал, не умеющий фильтровать граф транзакций от циклических сделок между связанными кошельками, покупает актив на самом пике искусственного разгона и становится «выходной ликвидностью» (Exit Liquidity) для организаторов схемы.</p>
+
+              <h3>5. Экономика внимания и фазы жизненного цикла нарратива</h3>
+              <p>В постиндустриальном информационном пространстве самым дефицитным ресурсом является не код, который можно скопировать за пять минут (Форк), а человеческое внимание. <strong>Экономика внимания (Attention Economy)</strong> конвертирует социальный хайп и медиа-охваты в приток розничного капитала. Но у любого хайп-нарратива без фундаментальной доходности есть строгий математический цикл затухания: (1) Скрытая аккумуляция инсайдерами и раздача «белых списков» (Allowlist/Whitelist) для создания искусственного дефицита на первичном минте; (2) Агрессивная накачка через инфлюенсеров и социальные доказательства; (3) Кульминация розничной жадности (FOMO), на которой умный капитал (Smart Money) разгружает позиции в руки толпы; (4) Капитуляция, иссякание притока новых покупателей и смерть ликвидности.</p>
+
+              <h3>6. Истинная ценность 1%: программируемые права и финансовые деривативы</h3>
+              <p>Отбросив спекулятивную шелуху с картинками, мы обнаруживаем тот самый 1% применений, ради которого институциональные гиганты внедряют стандарты невзаимозаменяемых токенов. Во-первых, это <strong>упаковка сложных финансовых позиций и деривативов</strong>. Ярчайший пример — протокол концентрированной ликвидности <strong>Uniswap v3</strong>: когда поставщик ликвидности (LP) размещает капитал в индивидуальном ценовом диапазоне, его позиция невозможно выразить взаимозаменяемым токеном ERC-20, поэтому смарт-контракт выпускает уникальный NFT, который сам по себе является финансовым контейнером с правом на тело депозита и накопленные комиссии.</p>
+
+              <p>Во-вторых, это токенизация активов реального мира (<strong>RWA — Real World Assets</strong>), долговых расписок, лицензий, интеллектуальной собственности с зашитым на уровне смарт-контракта принудительным расщеплением роялти и дивидендных потоков. В-третьих, это рынок <strong>NFT-Fi и залогового кредитования</strong>: уникальные цифровые активы используются в качестве <strong>маржинального обеспечения</strong> для получения ликвидных займов в стейблкоинах. Однако и здесь действуют жесткие законы риска: если отношение суммы долга к залоговой стоимости (<strong>LTV — Loan-to-Value</strong>) превышает критический порог из-за падения Floor Price коллекции, смарт-контракт кредитного протокола безжалостно инициирует процедуру <strong>ликвидации</strong> залога через механизм <strong>голландского аукциона</strong> (аукциона с понижающейся ценой до момента нахождения покупателя, готового перекрыть долг).</p>
+
+              <h3>7. Метрики ончейн-форензики для отбора активов</h3>
+              <p>Аналитик закрытого контура никогда не оценивает актив глазами — он оценивает его исключительно через матрицу ончейн-метрик. При аудите любого смарт-контракта стандарта ERC-721 / TEP-62 проверяются четыре критических индикатора:
+              <br>1. <strong>Unique Holders Ratio (Коэффициент уникальных держателей):</strong> отношение числа уникальных кошельков к общему предложению (Total Supply). Если 10 000 токенов сосредоточены на 300 кошельках, перед вами централизованный пул с высоким риском синхронного дампа.
+              <br>2. <strong>Listed Ratio (Процент активов в стакане продаж):</strong> чем меньший процент коллекции выставлен на продажу по лимитным ордерам Ask, тем ниже навес предложения над рынком.
+              <br>3. <strong>Bid-to-Ask Depth (Соотношение глубины бидов к аскам):</strong> сколько токенов можно продать мгновенно в существующие лимитные заявки покупателей без обрушения котировки более чем на 10%.
+              <br>4. <strong>Чистый объем без Wash Trading:</strong> объем сделок, очищенный от переводов между кластеризованными адресами одного владельца.</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">🔬 Методологическое резюме Модуля 02</div>
+                <p style="margin-bottom: 0; color: #ffffff;">В аналитике выживают только люди с холодным математическим расчетом. Рассматривайте любой NFT исключительно как контейнер со смарт-контрактом. Если внутри контейнера нет юридически или алгоритмически защищенного денежного потока, глубокого стакана лимитных бидов и неизменяемого хранения метаданных (IPFS/On-chain) — его математическое ожидание на длинной дистанции стремится к нулю.</p>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Чем на уровне архитектуры смарт-контракта невзаимозаменяемый токен (ERC-721 / TEP-62) фундаментально отличается от взаимозаменяемого токена (ERC-20)?',
+              options: [
+                'Наличием уникального идентификатора tokenId в связке с адресом контракта, что делает каждую единицу неповторимой и неделимой по умолчанию',
+                'Отсутствием необходимости платить комиссию за газ при передаче между кошельками',
+                'Хранением всех токенов на централизованном сервере разработчика'
+              ],
+              correct: 0
+            },
+            {
+              q: '2. Какой стандарт смарт-контрактов является гибридным и позволяет в рамках одного контракта эффективно управлять как взаимозаменяемыми, так и невзаимозаменяемыми токенами с пакетной передачей?',
+              options: [
+                'ERC-20',
+                'ERC-1155',
+                'HTTP-404'
+              ],
+              correct: 1
+            },
+            {
+              q: '3. Какой метод смарт-контракта аналитик обязан проверить первым делом, чтобы выяснить, где физически хранятся метаданные и медиафайл NFT?',
+              options: [
+                'Метод tokenURI',
+                'Метод deleteBlockchain',
+                'Метод printMoney'
+              ],
+              correct: 0
+            },
+            {
+              q: '4. Почему хранение метаданных NFT по обычной ссылке HTTP/HTTPS на централизованном облачном сервере (например, AWS) превращает право собственности в иллюзию?',
+              options: [
+                'Потому что такие файлы открываются только на мобильных устройствах',
+                'Владелец сервера может в любой момент изменить файл по этой ссылке или отключить сервер, оставив токен указывать на пустоту',
+                'Потому что протокол HTTPS автоматически списывает стейблкоины с кошелька'
+              ],
+              correct: 1
+            },
+            {
+              q: '5. Как обеспечивается неизменяемость метаданных в децентрализованной файловой системе IPFS?',
+              options: [
+                'Через контентную адресацию (CID — Content Identifier), где сам адрес файла является криптографическим хешем его содержимого',
+                'За счет честного слова основателя проекта в социальных сетях',
+                'Путем записи файлов на гибкие магнитные дискеты'
+              ],
+              correct: 0
+            },
+            {
+              q: '6. В чем заключается опасная когнитивная иллюзия метрики Floor Price (минимальной цены продажи) на низколиквидном рынке NFT?',
+              options: [
+                'Floor Price всегда занижает реальную стоимость портфеля в десять раз',
+                'Floor Price отражает лишь минимальную цену предложения продавцов (Ask), но не гарантирует наличия встречных лимитных заявок покупателей (Bids) для мгновенного выхода в деньги',
+                'Floor Price рассчитывается только один раз в год'
+              ],
+              correct: 1
+            },
+            {
+              q: '7. Какой показатель определяет реальную мгновенную ликвидность NFT-коллекции при необходимости срочно закрыть позицию?',
+              options: [
+                'Количество подписчиков проекта в мессенджерах',
+                'Глубина стакана встречных лимитных заявок на покупку (Collection Bids) и величина спреда между лучшим Ask и лучшим Bid',
+                'Красота цветовой палитры изображения'
+              ],
+              correct: 1
+            },
+            {
+              q: '8. Что представляет собой манипулятивная механика Wash Trading на рынках цифровых активов?',
+              options: [
+                'Циклическая перепродажа актива между собственными связанными кошельками манипулятора для создания иллюзии огромного торгового объема и спроса',
+                'Обязательная процедура налогового аудита смарт-контракта',
+                'Автоматическая балансировка серверной нагрузки на RPC-узлах'
+              ],
+              correct: 0
+            },
+            {
+              q: '9. Какую роль в цикле «Экономики внимания» играют недисциплинированные розничные участники, покупающие актив на фазе кульминации медийного хайпа (FOMO)?',
+              options: [
+                'Они становятся «выходной ликвидностью» (Exit Liquidity), позволяя инсайдерам и умному капиталу разгрузить накопленные позиции',
+                'Они получают гарантированную страховку депозита от маркет-мейкера',
+                'Они автоматически становятся валидаторами базового уровня блокчейна'
+              ],
+              correct: 0
+            },
+            {
+              q: '10. Как технология NFT используется в децентрализованном протоколе Uniswap v3 в рамках того самого 1% фундаментально ценных применений?',
+              options: [
+                'Для продажи коллекционных аватарок основателей биржи',
+                'Для упаковки индивидуальных позиций поставщиков концентрированной ликвидности (LP) с уникальными ценовыми границами и накопленными комиссиями',
+                'Для блокировки доступа пользователям без подписки'
+              ],
+              correct: 1
+            },
+            {
+              q: '11. Что означает термин RWA (Real World Assets) в контексте промышленной токенизации и смарт-контрактов?',
+              options: [
+                'Случайная генерация волатильных альткоинов',
+                'Токенизация прав на активы реального мира (недвижимость, долговые обязательства, казначейские векселя, лицензии) в блокчейне',
+                'Алгоритм размытия графического фона в интерфейсе'
+              ],
+              correct: 1
+            },
+            {
+              q: '12. При каком условии в протоколах залогового кредитования (NFT-Fi) наступает принудительная ликвидация NFT, внесенного в качестве маржинального обеспечения?',
+              options: [
+                'Когда коэффициент LTV (Loan-to-Value — отношение долга к стоимости залога) превышает критический порог из-за падения рыночной оценки обеспечения',
+                'Если заемщик не заходит в свой кошелек более трех дней',
+                'Когда стоимость залога вырастает в два раза'
+              ],
+              correct: 0
+            },
+            {
+              q: '13. Какой аукционный механизм чаще всего используют смарт-контракты кредитных протоколов для быстрой реализации ликвидируемого залога?',
+              options: [
+                'Закрытая лотерея со случайным выбором победителя',
+                'Голландский аукцион (аукцион с постепенным алгоритмическим снижением цены предложения до нахождения покупателя, перекрывающего долг)',
+                'Голосование в социальных сетях'
+              ],
+              correct: 1
+            },
+            {
+              q: '14. О чем сигнализирует аналитику критически низкий показатель Unique Holders Ratio (например, 10 000 токенов сосредоточены всего на 200 кошельках)?',
+              options: [
+                'О высокой концентрации предложения в руках узкой группы («китов») и экстремальном риске манипулятивного обвала цены',
+                'О полной децентрализации и безопасности актива',
+                'О том, что смарт-контракт не берет комиссию за перевод'
+              ],
+              correct: 0
+            },
+            {
+              q: '15. О чем свидетельствует низкое значение метрики Listed Ratio (низкий процент токенов коллекции, выставленных в стакан продаж Ask)?',
+              options: [
+                'О слабом навесе предложения продавцов над рынком в текущий момент времени',
+                'О полном удалении смарт-контракта из блокчейна',
+                'О блокировке функции перевода токенов'
+              ],
+              correct: 0
+            }
+          ]
+        },
+        {
+          id: 3,
+          title: 'Микроструктура рынков: алгоритмические маркет-мейкеры и агрегация ликвидности',
+          shortTitle: 'Микроструктура рынков',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Добро пожаловать на третий уровень академического симулятора. Большинство розничных трейдеров начинают свой путь с изучения графиков: они ищут паттерны, рисуют линии тренда и применяют осцилляторы. Это фундаментальная когнитивная ошибка, навязанная индустрией для формирования послушной кормовой базы. Запомните академическую истину: <strong>график — это лишь посмертный слепок рынка, визуальное следствие уже совершенных сделок</strong>. Цена на графике показывает, где рынок <em>был</em>, но не имеет математической силы диктовать, куда он <em>пойдет</em>. Истинная механика ценообразования скрыта на микроуровне — в книге ордеров (Order Book) и алгоритмах агрегации ликвидности.</p>
+
+              <h3>1. Анатомия стакана ордеров (L2 Order Book) и механика исполнения</h3>
+              <p>Любой централизованный рынок сводится к двусторонней очереди заявок — стакану ордеров. Сверху располагаются лимитные ордера на продажу (Asks), снизу — лимитные ордера на покупку (Bids). Лимитный ордер — это математическое обещание: «Я готов купить актив по цене X, но не дороже» или «продать по цене Y, но не дешевле». Совокупность лимитных ордеров формирует <strong>ликвидность</strong> рынка (Maker volume). Разница между лучшей ценой продажи (Best Ask) и лучшей ценой покупки (Best Bid) называется <strong>спредом (Spread)</strong>.</p>
+              
+              <p>С другой стороны выступают рыночные ордера (Market Orders), генерируемые агрессивными участниками (Takers). Рыночный ордер требует немедленного исполнения по любой доступной цене. В момент отправки рыночного ордера на покупку торговое ядро (Matching Engine) биржи начинает поглощать ближайшие лимитные заявки продавцов (Asks), двигаясь вверх по стакану. Этот процесс потребления ликвидности вызывает смещение цены актива и <strong>проскальзывание (Slippage)</strong> — разницу между ожидаемой ценой в момент отправки ордера и фактической средней ценой его исполнения.</p>
+
+              <h3>2. Институциональные маркет-мейкеры и заработок на спреде</h3>
+              <p>Почему стакан ордеров не пустеет? Эту задачу решают алгоритмические маркет-мейкеры — институциональные игроки, обладающие гигантским капиталом и сверхбыстрыми каналами связи (High-Frequency Trading, HFT). Их цель — не угадать направление движения цены, а заработать на математическом ожидании спреда. Маркет-мейкер одновременно выставляет тысячи мелких лимитных ордеров по обе стороны от текущей цены (котирует рынок). Покупая актив у рыночных продавцов на Bid и мгновенно перепродавая его рыночным покупателям на Ask, алгоритм забирает себе величину спреда за вычетом комиссий биржи. Главный риск для маркет-мейкера — это <strong>токсичный поток (Toxic Flow)</strong>, то есть направленный тренд, инспирированный инсайдерами, когда алгоритм вынужденно накапливает убыточную позицию против движения рынка (Adverse Selection).</p>
+
+              <h3>3. Иллюзия ликвидности: Спуфинг и фантомные стены</h3>
+              <p>Аналитик, не понимающий психологии толпы, воспринимает стакан ордеров как чистую монету. На практике книга заявок — это арена жестоких психологических манипуляций. Самая распространенная из них — <strong>спуфинг (Spoofing)</strong>. Алгоритм выставляет гигантский лимитный ордер на покупку (например, на миллион долларов) чуть ниже текущей цены, создавая визуальную «стену ликвидности». Розничные спекулянты, видя эту стену, верят в сильную поддержку и начинают покупать. Как только цена немного подрастает, алгоритм мгновенно (за микросекунды) отменяет свою фантомную заявку и продает свои реальные активы обманутой толпе. 99% непрофессионалов статистически обречены быть жертвами спуфинга, поскольку их лимбическая система реагирует на визуальный объем, не понимая, что в стакане ордеров намерение не является обязательством до момента физического исполнения.</p>
+
+              <h3>4. Децентрализованные финансы (DeFi) и революция AMM</h3>
+              <p>В распределенных сетях (Web3) классическая книга ордеров сталкивается с проблемой: каждое выставление и отмена лимитной заявки требует записи в блокчейн и оплаты комиссии за газ (Gas). Чтобы решить эту проблему, был изобретен <strong>автоматический маркет-мейкер (AMM)</strong>. В AMM (например, Uniswap v2) нет стакана заявок. Есть смарт-контракт (пул ликвидности), в который поставщики (Liquidity Providers, LP) вносят пару активов (например, ETH и USDT). Ценообразование подчиняется детерминированной математической формуле постоянного произведения: <strong>x * y = k</strong>, где x и y — резервы первого и второго актива, а k — неизменная константа.</p>
+
+              <h3>5. Математика проскальзывания в AMM и арбитраж</h3>
+              <p>Формула <em>x * y = k</em> означает, что кривая ликвидности имеет форму гиперболы. Когда трейдер покупает ETH за USDT, он добавляет USDT в пул (увеличивая y) и забирает ETH (уменьшая x). Чтобы константа <em>k</em> осталась неизменной, смарт-контракт автоматически пересчитывает баланс, делая каждую следующую единицу ETH дороже. Чем больше объем покупки по отношению к общей глубине пула, тем более жестким и экспоненциальным будет проскальзывание цены (Price Impact). Если после крупной сделки цена в пуле AMM отклоняется от цен на централизованных биржах, в игру вступают <strong>арбитражники</strong> — боты, которые выкупают подешевевший актив в одном месте и продают в другом, возвращая систему в состояние математического равновесия и забирая безрисковую прибыль.</p>
+
+              <h3>6. Проклятие поставщика ликвидности: Непостоянные потери (Impermanent Loss)</h3>
+              <p>Новички несут свои капиталы в пулы ликвидности DeFi ради обещаний высоких процентов доходности (APY) от комиссий трейдеров. Рынки не прощают наивности. Они упускают скрытый математический риск — <strong>непостоянные потери (Impermanent Loss)</strong>. Суть феномена: если цена одного актива в пуле сильно изменяется по отношению к другому, арбитражники систематически выкачивают из пула дорожающий актив, оставляя поставщику ликвидности дешевеющий. Если LP извлечет свои средства из пула после сильного тренда, он обнаружит, что суммарная долларовая стоимость его портфеля меньше, чем если бы он просто хранил эти два актива на холодном кошельке без предоставления ликвидности. В аналитике выживают только те, кто умеет рассчитывать, перекрывают ли заработанные комиссии математический убыток от дивергенции цен.</p>
+
+              <h3>7. Эволюция маршрутизации: Агрегаторы ликвидности</h3>
+              <p>Разделение ликвидности по тысячам независимых пулов в разных протоколах (Uniswap, SushiSwap, Curve) порождает фрагментацию. Крупный институциональный ордер, брошенный в один пул, вызовет катастрофическое проскальзывание. Для решения проблемы созданы <strong>агрегаторы ликвидности (DEX Aggregators, например, 1inch)</strong>. Их алгоритмы работают по принципу алгоритма Дейкстры (поиск кратчайшего пути в графе): смарт-контракт агрегатора дробит крупный материнский ордер на десятки дочерних транзакций и маршрутизирует их через разные пулы и промежуточные токены одновременно в рамках одного блока, минимизируя общее проскальзывание и обеспечивая лучшее исполнение цены.</p>
+
+              <h3>8. Лента принтов (Time and Sales) как истинный детектор тренда</h3>
+              <p>Возвращаясь к централизованным рынкам: как профессиональному кризис-аналитику отличить истинное институциональное поглощение от розничного шума? Ответ — анализ <strong>ленты сделок (Time and Sales)</strong> и дельты объемов. Лента показывает только фактически исполненные рыночные ордера. Анализируя ленту, мы ищем кластеры крупных агрессивных покупок (когда Taker бьет по Asks) на ключевых уровнях стакана. Если на ценовом уровне стоит гигантский лимитный Ask, а лента показывает непрерывный поток рыночных покупок, которые методично этот объем поглощают, — это называется <strong>абсорбцией (Absorption)</strong>. Продавец пытается удержать уровень, но агрессивный покупатель переваривает всю ликвидность. Как только барьер будет пробит, возникнет вакуум ликвидности, и цена мгновенно выстрелит вверх. Это механика, которую невозможно увидеть на свечном графике постфактум.</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">🔬 Академическое резюме Модуля 03</div>
+                <p style="margin-bottom: 0; color: #ffffff;">Перестаньте гадать на кофейной гуще графических индикаторов. Цена двигается не потому, что пересеклись две скользящие средние (Moving Averages). Цена двигается исключительно потому, что агрессивный рыночный объем превышает пассивную лимитную плотность в стакане. Ваша задача — оценивать градиент ликвидности, выявлять фантомные ордера спуферов и рассчитывать математический Price Impact для институциональных объемов.</p>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Какова основная функция лимитных ордеров (Maker orders) в книге заявок (L2 Order Book) централизованной биржи?',
+              options: [
+                'Мгновенное исполнение сделки по любой доступной рыночной цене',
+                'Формирование пассивной ликвидности рынка и обеспечение ценовых уровней, по которым готовы совершаться сделки',
+                'Автоматический перевод активов на холодный кошелек пользователя'
+              ],
+              correct: 1
+            },
+            {
+              q: '2. Что происходит с ценой актива, когда в стакан поступает крупный агрессивный рыночный ордер (Market Order) на покупку?',
+              options: [
+                'Торговое ядро биржи блокирует ордер до появления встречного рыночного ордера',
+                'Ордер исполняется ровно по одной цене, независимо от своего объема',
+                'Ордер поглощает лимитные заявки продавцов (Asks), двигаясь вверх по стакану, что вызывает ценовое проскальзывание (Slippage)'
+              ],
+              correct: 2
+            },
+            {
+              q: '3. Что такое спред (Spread) в микроструктуре биржевого стакана?',
+              options: [
+                'Суммарная комиссия биржи за ввод и вывод фиатных средств',
+                'Разница в цене между лучшей доступной заявкой на продажу (Best Ask) и лучшей заявкой на покупку (Best Bid)',
+                'Графический паттерн, предшествующий падению рынка'
+              ],
+              correct: 1
+            },
+            {
+              q: '4. На чем математически зарабатывают институциональные алгоритмические маркет-мейкеры?',
+              options: [
+                'На долгосрочном инвестировании в фундаментальные технологические стартапы',
+                'На разнице спреда: они непрерывно покупают по Bid и продают по Ask, забирая разницу себе при отсутствии сильного направленного тренда',
+                'На выдаче кредитов розничным трейдерам под залог недвижимости'
+              ],
+              correct: 1
+            },
+            {
+              q: '5. Что представляет собой манипулятивная тактика спуфинга (Spoofing) в книге ордеров?',
+              options: [
+                'Анализ социальных сетей для определения настроений толпы',
+                'Выставление гигантских фантомных лимитных ордеров для создания ложной видимости поддержки или сопротивления, с их последующей отменой до момента исполнения',
+                'Взлом серверов биржи для изменения исторического графика цен'
+              ],
+              correct: 1
+            },
+            {
+              q: '6. Какая детерминированная формула лежит в основе ценообразования базовых пулов автоматических маркет-мейкеров (AMM) вроде Uniswap v2?',
+              options: [
+                'Теорема Пифагора (a^2 + b^2 = c^2)',
+                'Формула постоянного произведения (x * y = k)',
+                'Формула сложного процента'
+              ],
+              correct: 1
+            },
+            {
+              q: '7. Как формула x * y = k в AMM реагирует на попытку выкупить значительную долю актива из пула одной транзакцией?',
+              options: [
+                'Она продает актив по фиксированной цене, субсидируя разницу из резервного фонда разработчиков',
+                'Она вызывает экспоненциальное удорожание актива, генерируя сильное ценовое проскальзывание (Price Impact), чтобы защитить пул от полного истощения',
+                'Она блокирует транзакцию, если её объем превышает 1% от пула'
+              ],
+              correct: 1
+            },
+            {
+              q: '8. Какую критическую функцию выполняют арбитражные боты в экосистеме децентрализованных финансов (DeFi)?',
+              options: [
+                'Они генерируют обучающий контент для новичков',
+                'Они выкупают ценовые отклонения между пулами AMM и централизованными биржами, возвращая систему к математическому равновесию',
+                'Они вручную одобряют каждую транзакцию в блокчейне'
+              ],
+              correct: 1
+            },
+            {
+              q: '9. В чем заключается математический риск непостоянных потерь (Impermanent Loss) для поставщиков ликвидности (LP) в AMM-пулах?',
+              options: [
+                'Биржа может конфисковать токены LP за нарушение пользовательского соглашения',
+                'Утеря seed-фразы от криптовалютного кошелька при сбое жесткого диска',
+                'При сильном расхождении цен активов арбитражники забирают из пула дорожающий актив, оставляя LP дешевеющий, что делает позицию менее выгодной, чем простое хранение'
+              ],
+              correct: 2
+            },
+            {
+              q: '10. Как агрегаторы DEX-ликвидности (например, 1inch) решают проблему фрагментации пулов и снижают проскальзывание для крупных ордеров?',
+              options: [
+                'Они связываются с генеральным директором биржи для запроса индивидуальной скидки',
+                'Их смарт-контракт дробит крупный ордер и маршрутизирует его части через различные пулы параллельно в рамках одного блока',
+                'Они ставят транзакцию в очередь ожидания на несколько дней, пока ликвидность не накопится'
+              ],
+              correct: 1
+            },
+            {
+              q: '11. Почему анализ ленты принтов (Time and Sales) дает аналитику больше информации, чем классический свечной график?',
+              options: [
+                'Потому что свечной график обновляется только раз в сутки',
+                'Лента принтов цветная, что снижает нагрузку на зрение',
+                'Лента показывает физически исполненные рыночные ордера в реальном времени, раскрывая агрессию покупателей и продавцов на микроуровне'
+              ],
+              correct: 2
+            },
+            {
+              q: '12. Что означает феномен «абсорбции» (Absorption) на ключевом уровне ликвидности?',
+              options: [
+                'Ситуация, когда агрессивные рыночные покупки методично поглощают гигантский пассивный лимитный ордер продавца, переваривая его объем',
+                'Впитывание влаги серверами биржи при нарушении климат-контроля в дата-центре',
+                'Слияние двух разных блокчейнов в один'
+              ],
+              correct: 0
+            },
+            {
+              q: '13. Кто из участников микроструктуры рынка выступает Taker-ом (забирающим ликвидность)?',
+              options: [
+                'Алгоритмический маркет-мейкер',
+                'Участник, отправляющий агрессивный рыночный ордер (Market Order) для немедленного исполнения',
+                'Программист, пишущий смарт-контракт'
+              ],
+              correct: 1
+            },
+            {
+              q: '14. Какая когнитивная ошибка заставляет новичков становиться жертвами алгоритмов спуфинга?',
+              options: [
+                'Неумение программировать на языке Python',
+                'Восприятие фантомного лимитного объема в стакане как безусловного обязательства и гарантии ценовой поддержки',
+                'Использование слишком сложных математических формул при расчете лота'
+              ],
+              correct: 1
+            },
+            {
+              q: '15. Каков главный риск для маркет-мейкера (Market Maker), постоянно предоставляющего ликвидность в стакан?',
+              options: [
+                'Токсичный поток (Toxic Flow) — сильный инсайдерский направленный тренд, при котором алгоритм аккумулирует убыточную позицию против рынка',
+                'Остановка торгов на выходные дни',
+                'Блокировка аккаунта в социальной сети'
+              ],
+              correct: 0
+            }
+          ]
+        },
+        {
+          id: 4,
+          title: 'Маржинальное обеспечение и леверидж: математика ликвидаций и крах неконтролируемой жадности',
+          shortTitle: 'Кредитные плечи и Маржа',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Мы подошли к теме, которая является главной причиной финансового кладбища розничных трейдеров. Четвертый модуль академического симулятора посвящен деривативам, маржинальному обеспечению и кредитному плечу (левериджу). Послушайте внимательно: леверидж не увеличивает вашу компетенцию, он не создает торговое преимущество (Edge). Леверидж выполняет лишь одну функцию — он математически ускоряет траекторию движения вашего капитала. Если ваша торговая система имеет отрицательное математическое ожидание (а у 99% непрофессионалов оно отрицательное), то использование кредитного плеча является гарантом ускоренного банкротства.</p>
+
+              <h3>1. Фундаментальная механика маржинального обеспечения</h3>
+              <p>Торговля деривативами (фьючерсами, бессрочными контрактами) не требует полной оплаты базового актива. Вы используете свой капитал как залог — <strong>маржинальное обеспечение (Margin)</strong>. Существует два критических порога. Первый — <strong>Начальная маржа (Initial Margin)</strong>: минимальная сумма залога, необходимая для открытия позиции. Если вы используете кредитное плечо 10x, начальная маржа составляет 10% от номинальной стоимости позиции. Второй порог — <strong>Поддерживающая маржа (Maintenance Margin)</strong>: минимальный уровень средств, при котором биржа позволяет вам удерживать позицию открытой (обычно от 0.5% до 1% от номинала). Если ваш убыток «съедает» залог и баланс опускается ниже поддерживающей маржи, срабатывает Margin Call, и в дело вступает безжалостный ликвидационный движок.</p>
+
+              <h3>2. Математика катастрофы: линейный леверидж и геометрический убыток</h3>
+              <p>Разберем математику жадности на цифрах. У вас есть 1 000 USDT обеспечения. Вы открываете позицию на покупку (Long) с плечом 10x. Номинальный размер вашей позиции теперь 10 000 USDT. Это означает, что каждое изменение цены актива на 1% приносит вам 100 USDT прибыли или убытка (10% от вашего собственного залога). Если рынок идет против вас всего на 5%, ваш убыток составляет 500 USDT (уничтожено 50% вашего капитала). Если рынок падает на 9.5%, ваш убыток составляет 950 USDT. Оставшиеся 50 USDT (0.5% от номинала) — это та самая поддерживающая маржа. В этот момент биржа принудительно изымает вашу позицию — происходит <strong>Ликвидация</strong>.</p>
+
+              <h3>3. Изолированная маржа против Кросс-маржи</h3>
+              <p>Архитектура управления обеспечением делится на два режима. <strong>Изолированная маржа (Isolated Margin)</strong> капсулирует риск: вы выделяете под сделку строго ограниченную сумму, и в худшем сценарии потеряете только её. Напротив, <strong>Кросс-маржа (Cross Margin)</strong> использует весь свободный баланс вашего фьючерсного счета в качестве единого пула обеспечения для всех открытых позиций. Дилетанты обожают кросс-маржу, так как она отодвигает цену ликвидации дальше от точки входа. Однако академическая реальность сурова: при наступлении системного рыночного шока (Black Swan) одна крупная убыточная позиция в режиме кросс-маржи подобна вирусу — она высосет обеспечение из плюсовых позиций и полностью, до цента, обнулит весь ваш торговый депозит.</p>
+
+              <h3>4. Цена маркировки (Mark Price) и защита от сквизов</h3>
+              <p>Криптовалютные рынки подвержены жестоким манипуляциям. Злоумышленник с крупным капиталом может ударить по стакану низколиквидной биржи рыночным ордером, вызвав минутный прострел цены (Scam Wick) на 20%, чтобы выбить стоп-лоссы и ликвидировать позиции локальных трейдеров, после чего цена мгновенно вернется обратно. Чтобы защитить систему от локальных манипуляций, ликвидационный движок современных бирж использует не последнюю цену сделки (Last Price), а <strong>Цену маркировки (Mark Price)</strong>. Цена маркировки — это индексная цена, синтезируемая из потока котировок нескольких крупнейших спотовых бирж (Binance, Coinbase, Kraken). Ликвидация срабатывает только тогда, когда именно Mark Price пересекает ваш ликвидационный порог, игнорируя локальные аномалии в книге ордеров одной площадки.</p>
+
+              <h3>5. Бессрочные фьючерсы и Ставка финансирования (Funding Rate)</h3>
+              <p>Самый популярный дериватив в криптоиндустрии — <strong>Бессрочный своп (Perpetual Futures)</strong>. В отличие от классических фьючерсов (например, на Чикагской товарной бирже CME), у него нет даты экспирации (исполнения). Но как заставить цену бессрочного контракта не отрываться от цены реального спотового актива? Эту задачу элегантно решает механизм <strong>Ставки финансирования (Funding Rate)</strong>. Это периодический (чаще всего каждые 8 часов) арбитражный платеж между участниками рынка. Если фьючерс торгуется дороже спота (на рынке доминируют оптимисты, Funding Rate положительный), лонгисты обязаны платить процент шортистам. Это стимулирует арбитражников открывать шорт, продавливая цену обратно к базовому активу. Если толпа впадает в панику (FUD) и фьючерс торгуется дешевле спота — ставка становится отрицательной, и шортисты платят лонгистам.</p>
+
+              <h3>6. Ликвидационный движок и Страховой фонд (Insurance Fund)</h3>
+              <p>Когда вы ликвидированы, ваша позиция не испаряется — она принудительно передается ликвидационному механизму биржи (Liquidation Engine). Биржа обязана немедленно закрыть вашу позицию рыночным ордером в стакан, чтобы расплатиться с вашим контрагентом. Если рынок падает слишком быстро (Flash Crash), биржа может закрыть вашу позицию по цене даже ниже цены банкротства. Этот зазор (проскальзывание при ликвидации) покрывается из <strong>Страхового фонда (Insurance Fund)</strong> биржи. Более того, при ликвидации с вас списывается карательная <strong>ликвидационная комиссия (Liquidation Penalty)</strong> — штраф за недисциплинированность, который отправляется на пополнение того самого страхового фонда.</p>
+
+              <h3>7. Цепная реакция: Каскадные ликвидации (Short/Long Squeeze)</h3>
+              <p>Теперь объединим знания из Модуля 3 (стакан ордеров) и Модуля 4 (маржа). Когда на рынке аккумулируется огромный объем маржинальных позиций, возникает риск <strong>каскадной ликвидации (Long Squeeze или Short Squeeze)</strong>. Представьте падение рынка: ликвидационный движок принудительно выбрасывает в стакан тысячи рыночных ордеров на продажу (закрывая лонги). Эти агрессивные продажи поглощают лимитные Bids в стакане, проваливая цену еще ниже. Падение цены триггерит следующий слой маржин-коллов у других трейдеров, биржа снова выбрасывает рыночные ордера на продажу. Возникает самоподдерживающаяся петля обратной связи (Feedback Loop). Рынок проваливается в вакуум ликвидности на десятки процентов за минуты. Институциональный аналитик не боится этих каскадов — он их прогнозирует, отслеживая метрику Открытого интереса (Open Interest) и распределение ликвидационных кластеров.</p>
+
+              <h3>8. Математика разорения (Gambler’s Ruin)</h3>
+              <p>В теории вероятностей существует фундаментальная теорема «Разорение игрока» (Gambler's Ruin). Она гласит: при игре с ограниченным капиталом против казино с неограниченным капиталом вероятность банкротства игрока равна 100%, если он не обладает положительным математическим ожиданием и жестким контролем размера ставки. Использование чрезмерного левериджа превращает инвестирование в подбрасывание монеты с отрицательной комиссией. Если вы рискуете 50% своего счета в одной сделке, вам достаточно поймать серию всего из двух убытков подряд, чтобы капитал исчез навсегда. Рынок не прощает эмоций. В аналитике выживают только люди, для которых сохранение капитала (Capital Preservation) всегда математически доминирует над попыткой его приумножить.</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">🔬 Академическое резюме Модуля 04</div>
+                <p style="margin-bottom: 0; color: #ffffff;">Леверидж — это радиация. В контролируемых дозах профессионалами он используется для повышения эффективности капитала (Capital Efficiency) и хеджирования. В руках дилетанта он становится инструментом финансового суицида. Ваша задача — оперировать понятиями изолированной маржи, цены маркировки и ликвидационных кластеров. Вы должны понимать, что биржа — это не ваш друг, это алгоритмический контрагент, чей ликвидационный движок математически запрограммирован изымать капитал некомпетентных участников.</p>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Какую единственную математическую функцию выполняет кредитное плечо (леверидж) в торговой системе трейдера?',
+              options: [
+                'Ускоряет траекторию изменения депозита (приумножает как прибыль, так и убытки), не создавая при этом торгового преимущества (Edge)',
+                'Гарантирует защиту от проскальзывания цены при рыночных ордерах',
+                'Автоматически превращает убыточную стратегию в прибыльную'
+              ],
+              correct: 0
+            },
+            {
+              q: '2. Что означает термин «Начальная маржа» (Initial Margin)?',
+              options: [
+                'Комиссия, которую биржа берет за регистрацию аккаунта',
+                'Минимальная сумма залога из собственных средств трейдера, необходимая для открытия маржинальной позиции',
+                'Штраф за досрочное закрытие фьючерсного контракта'
+              ],
+              correct: 1
+            },
+            {
+              q: '3. При достижении какого порога обеспечения ликвидационный движок биржи принудительно закрывает позицию трейдера?',
+              options: [
+                'Когда баланс залога падает ниже уровня Поддерживающей маржи (Maintenance Margin)',
+                'Ровно через 24 часа после открытия сделки',
+                'Когда трейдер выключает торговый терминал'
+              ],
+              correct: 0
+            },
+            {
+              q: '4. Трейдер имеет 1 000 USDT и открывает позицию Long с плечом 10x (размер 10 000 USDT). При каком движении рынка не в его сторону он потеряет 50% своего залога (500 USDT)?',
+              options: [
+                'При движении цены актива на 50%',
+                'При движении цены актива на 10%',
+                'При движении цены актива всего на 5%'
+              ],
+              correct: 2
+            },
+            {
+              q: '5. В чем заключается фатальная опасность режима Кросс-маржи (Cross Margin) для непрофессионала?',
+              options: [
+                'Он использует весь баланс фьючерсного счета как единое обеспечение, и одна неконтролируемая убыточная позиция может полностью обнулить весь депозит',
+                'Он автоматически конвертирует всю прибыль в стейблкоины',
+                'Он снижает максимальное кредитное плечо до 2x'
+              ],
+              correct: 0
+            },
+            {
+              q: '6. Какую цену использует ликвидационный движок современных бирж для расчета ликвидаций, чтобы избежать ложных срабатываний из-за локальных манипуляций (Scam Wicks)?',
+              options: [
+                'Последнюю цену сделки на самой бирже (Last Price)',
+                'Цену маркировки (Mark Price), синтезируемую из корзины котировок крупнейших внешних спотовых бирж',
+                'Среднесуточную цену за последний месяц (SMA-30)'
+              ],
+              correct: 1
+            },
+            {
+              q: '7. Какая механика заставляет цену бессрочного фьючерса (Perpetual Swap) держаться вблизи реальной спотовой цены актива?',
+              options: [
+                'Законодательный контроль центральных банков',
+                'Механизм Ставки финансирования (Funding Rate) — периодические арбитражные платежи между держателями лонгов и шортов',
+                'Голосование пользователей на форуме биржи'
+              ],
+              correct: 1
+            },
+            {
+              q: '8. Кто кому платит Funding Rate (ставку финансирования), если фьючерс торгуется значительно дороже спота (ставка положительная)?',
+              options: [
+                'Биржа платит всем участникам рынка из своего маркетингового фонда',
+                'Шортисты платят лонгистам за удержание позиции',
+                'Лонгисты (покупатели) платят шортистам (продавцам), стимулируя арбитраж на понижение цены'
+              ],
+              correct: 2
+            },
+            {
+              q: '9. Какова роль Страхового фонда (Insurance Fund) на деривативных криптобиржах?',
+              options: [
+                'Страхование здоровья и жизни сотрудников биржи',
+                'Выплата компенсаций трейдерам, если они ошиблись с анализом рынка',
+                'Покрытие дефицита банкротства, если ликвидационный движок из-за быстрого падения рынка закрыл позицию клиента по цене ниже цены его банкротства'
+              ],
+              correct: 2
+            },
+            {
+              q: '10. Зачем биржа взимает карательную ликвидационную комиссию (Liquidation Penalty) при принудительном закрытии позиции?',
+              options: [
+                'Для пополнения Страхового фонда (Insurance Fund) и финансового наказания трейдера за несоблюдение риск-менеджмента',
+                'Для оплаты рекламных кампаний на телевидении',
+                'Для покупки аппаратных кошельков активным пользователям'
+              ],
+              correct: 0
+            },
+            {
+              q: '11. Что служит триггером для возникновения каскадной ликвидации (Long Squeeze)?',
+              options: [
+                'Падение цены активирует маржин-коллы лонгистов -> ликвидационный движок выбрасывает агрессивные рыночные ордера на продажу -> цена падает еще ниже -> триггерятся новые маржин-коллы',
+                'Плановое техническое обслуживание серверов биржи',
+                'Массовый вывод средств трейдерами на банковские карты в конце месяца'
+              ],
+              correct: 0
+            },
+            {
+              q: '12. Какой аналитический показатель позволяет институциональным участникам оценивать вероятность масштабных сквизов (каскадов ликвидаций)?',
+              options: [
+                'Скорость интернет-соединения пользователей',
+                'Метрика Открытого интереса (Open Interest) и тепловые карты кластеров ликвидности/ликвидаций',
+                'Количество лайков под официальным постом биржи в соцсетях'
+              ],
+              correct: 1
+            },
+            {
+              q: '13. Что гласит математическая теорема «Разорение игрока» (Gambler’s Ruin) применительно к трейдингу с завышенным риском?',
+              options: [
+                'Каждый убыток повышает вероятность следующей прибыльной сделки на 10%',
+                'При игре с ограниченным капиталом и отрицательным матожиданием (без контроля риска), вероятность потери всего депозита математически равна 100%',
+                'Использование левериджа 100x делает банкротство математически невозможным'
+              ],
+              correct: 1
+            },
+            {
+              q: '14. Если аналитик рискует 50% своего счета в одной маржинальной сделке, сколько убыточных сделок подряд гарантируют полное уничтожение его депозита?',
+              options: [
+                'Десять',
+                'Всего две',
+                'Пятьдесят'
+              ],
+              correct: 1
+            },
+            {
+              q: '15. Какое правило является фундаментальным приоритетом для профессионального кризис-аналитика при работе с кредитным плечом?',
+              options: [
+                'Постоянное усреднение убыточной позиции (покупка падающего актива)',
+                'Вход в сделку всем депозитом (All-in) ради максимизации прибыли',
+                'Сохранение капитала (Capital Preservation) и жесткий контроль потерь всегда доминируют над попытками приумножить капитал'
+              ],
+              correct: 2
+            }
+          ]
+        },
+        {
+          id: 5,
+          title: 'Управление рисками (Risk Management): формулы сохранения капитала и математическое ожидание',
+          shortTitle: 'Управление рисками',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Пятый уровень симулятора отсеивает мечтателей от системных инженеров капитала. В индустрии укоренился опасный миф, будто аналитика нужна для предсказания будущего. Это ложь. Ни один алгоритм в мире не способен детерминированно предсказать следующий тик на эффективном рынке. Задача старшего аналитика состоит не в предсказании, а в <strong>управлении вероятностями и защите капитала</strong> от неизбежных статистических отклонений. Выживание на рынке — это не вопрос гениальности ваших входов в позицию. Это исключительно вопрос того, как вы управляете выходами. Рынки не прощают когнитивных искажений, а математика разорения (Risk of Ruin) работает безотказно.</p>
+
+              <h3>1. Асимметрия просадок (Drawdown Asymmetry)</h3>
+              <p>Первая математическая аксиома, которую вы обязаны выжечь в своем сознании: восстановление капитала после убытка нелинейно. Это называется асимметрией просадок. Если ваш депозит падает на 10%, для возврата к исходной точке вам нужно заработать 11.1%. Если вы теряете 20%, вам требуется уже 25% прибыли. Потеря 50% капитала требует 100% доходности (удвоения оставшихся средств) просто для того, чтобы выйти в ноль. А если вы, поддавшись азарту, допустили просадку в 90%, вам придется сделать невозможные 900%. Из этого следует жестокое правило: <strong>пересиживание убытка — это системная ошибка новичка</strong>, которая математически уничтожает шансы на долгосрочное выживание.</p>
+
+              <h3>2. Стоп-лосс как процедура инвалидации гипотезы</h3>
+              <p>Дилетанты воспринимают стоп-лосс (Stop-Loss) как признание поражения, удар по эго и физическую боль. Профессионал относится к стоп-лоссу как к бизнес-расходу, страховой премии или, что более точно, как к <strong>уровню инвалидации аналитической гипотезы</strong>. Когда вы входите в рынок, вы строите модель. Если цена достигает вашего стоп-уровня, это означает лишь одно: базовая посылка вашей модели оказалась неверной. Принятие убытка в 1% от депозита — это признак высшей академической дисциплины. Вы отсекаете зараженный сценарий до того, как он превратится в гангрену, уничтожающую весь счет.</p>
+
+              <h3>3. Золотое правило 1% и расчет размера позиции (Position Sizing)</h3>
+              <p>Размер позиции (Position Size) не определяется вашей уверенностью в сделке. Он вычисляется строго математически на основе дистанции до стоп-лосса. Институциональный стандарт риска на одну сделку составляет от 0.5% до 2% от общего капитала. Возьмем базовую константу: вы рискуете строго <strong>1% от депозита</strong>. Если ваш капитал $100,000, ваш максимальный убыток в сделке не может превышать $1,000. Если технический стоп-лосс на графике находится в 5% от цены входа, вы можете купить актив на $20,000 (потому что 5% падения от $20,000 дадут ровно $1,000 убытка). Если стоп-лосс шире и составляет 10%, размер вашей позиции механически сокращается до $10,000. Этот алгоритм гарантирует, что даже серия из 10 или 20 убытков подряд оставит вам более 80% капитала, сохраняя вас в игре.</p>
+
+              <h3>4. Математическое ожидание (Expected Value / Edge)</h3>
+              <p>Трейдинг — это казино, в котором аналитик должен стать владельцем казино, а не игроком. Ваше преимущество (Edge) измеряется формулой математического ожидания: <strong>EV = (Probability of Win × Average Win) - (Probability of Loss × Average Loss)</strong>. Система прибыльна на дистанции только если EV строго больше нуля. Винрейт (процент прибыльных сделок) сам по себе не имеет значения. Новички гонятся за винрейтом в 80%, забирая копеечные прибыли и допуская редкие, но катастрофические убытки. Профессионалы могут иметь винрейт 35%, но благодаря жесткому контролю потерь и асимметричной прибыли их EV остается глубоко положительным.</p>
+
+              <h3>5. Отношение Риск/Прибыль (Risk-to-Reward Ratio, R:R)</h3>
+              <p>Чтобы система с винрейтом 35% приносила прибыль, требуется <strong>асимметричное отношение риска к прибыли (R:R)</strong>. Каждая сделка оценивается в единицах риска (R). Если вы рискуете 1R ($1,000), ваша цель должна приносить минимум 3R ($3,000 прибыли). При соотношении 1:3 вы можете ошибаться в 70% случаев, и единственная успешная сделка полностью покроет три предыдущих убытка. Попытка торговать с R:R 1:1 или, что еще хуже, с отрицательным соотношением (рисковать 3R ради 1R прибыли) — это математический суицид, который неизбежно обнулит депозит из-за комиссий и дисперсии.</p>
+
+              <h3>6. Фатальность метода усреднения (Мартингейл)</h3>
+              <p>Самая деструктивная привычка, перешедшая в финансы из казино — это усреднение убыточной позиции (попытка купить дешевле падающий актив, чтобы улучшить среднюю цену входа). В теории вероятностей это вариация системы <strong>Мартингейл</strong>. Усреднение убытка означает, что вы увеличиваете размер риска в тот самый момент, когда рынок доказывает ошибочность вашей гипотезы. Это прямое нарушение логики инвалидации. Рынок может оставаться иррациональным (и падать) гораздо дольше, чем вы сможете сохранять платежеспособность. Единственно верное усреднение — это пирамидинг, то есть добавление объема к <em>прибыльной</em> позиции, которая уже подтвердила свою правоту.</p>
+
+              <h3>7. Риск корреляции и бета-коэффициент (Systemic Risk)</h3>
+              <p>Многие аналитики считают, что диверсифицируют риски, открывая 10 разных лонг-позиций по альткоинам на 1% риска каждая. На практике, криптовалютные рынки обладают экстремально высокой <strong>бетой (коэффициентом корреляции)</strong> по отношению к биткоину и глобальной ликвидности. Если макроэкономический фон рушится (Systemic Risk), все 10 активов упадут синхронно. Ваша иллюзия диверсификации превращается в реальный риск в 10% на портфель. Истинный риск-менеджмент требует оценки корреляционной матрицы активов и учета совокупной экспозиции портфеля по направлению (Net Exposure).</p>
+
+              <h3>8. Value at Risk (VaR) и хвостовые риски (Fat Tails)</h3>
+              <p>В институциональной среде используется метрика <strong>VaR (Value at Risk)</strong> — она оценивает максимальный ожидаемый убыток портфеля на заданном временном горизонте с вероятностью, например, 95%. Однако классический VaR строится на нормальном (гауссовом) распределении, в то время как финансовые рынки имеют распределение с <strong>«толстыми хвостами» (Fat Tails)</strong> — экстремальные события (Черные лебеди) происходят в них гораздо чаще, чем предсказывает классическая статистика. Поэтому профессионалы применяют стресс-тестирование: они моделируют поведение портфеля в условиях исторически зафиксированных коллапсов ликвидности (например, крах COVID-19 в марте 2020 года или коллапс FTX).</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">🔬 Академическое резюме Модуля 05</div>
+                <p style="margin-bottom: 0; color: #ffffff;">Выдающийся аналитик — это в первую очередь параноик, управляющий рисками. Каждая ваша сделка должна быть детерминирована еще до входа: вы обязаны знать точный размер риска в процентах, точку математической инвалидации сценария и целевое ожидание. Отсутствие железного стоп-лосса, превышение лимита риска в 1% или усреднение убыточной позиции автоматически квалифицируют вас как лудомана (игромана). Системы прощают ошибки прогнозирования, но математика никогда не прощает ошибок в расчете риска.</p>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Какова главная задача старшего аналитика при работе с капиталом на эффективных рынках?',
+              options: [
+                'Детерминированное предсказание будущего движения цены на основе секретных индикаторов',
+                'Управление вероятностями и защита капитала от неизбежных статистических отклонений (контроль риска)',
+                'Максимально быстрое увеличение депозита за счет кредитных плечей'
+              ],
+              correct: 1
+            },
+            {
+              q: '2. Что демонстрирует математический закон «асимметрии просадок» (Drawdown Asymmetry)?',
+              options: [
+                'Что восстановление капитала линейно: потеря 10% требует заработка ровно 10% для выхода в ноль',
+                'Что брокеры скрывают реальные комиссии при выводе средств',
+                'Что восстановление нелинейно: если вы теряете 50% капитала, вам нужно сделать 100% прибыли на остаток, просто чтобы вернуть исходную сумму'
+              ],
+              correct: 2
+            },
+            {
+              q: '3. Почему «пересиживание убытка» в надежде на разворот цены считается критической ошибкой новичка?',
+              options: [
+                'Потому что это математически уничтожает шансы на долгосрочное выживание из-за нелинейного увеличения требуемой доходности для восстановления',
+                'Потому что биржа берет дополнительную комиссию за каждую минуту открытой сделки',
+                'Потому что это утомляет зрение при наблюдении за монитором'
+              ],
+              correct: 0
+            },
+            {
+              q: '4. Как профессиональный кризис-аналитик воспринимает срабатывание стоп-лосса (Stop-Loss)?',
+              options: [
+                'Как личное оскорбление со стороны маркет-мейкера и повод отомстить рынку',
+                'Как уровень алгоритмической инвалидации аналитической гипотезы и плановый бизнес-расход',
+                'Как технический сбой биржи, требующий немедленного написания жалобы'
+              ],
+              correct: 1
+            },
+            {
+              q: '5. Что гласит золотое институциональное правило контроля риска (Position Sizing) на одну сделку?',
+              options: [
+                'Рисковать строго 1% (от 0.5% до 2%) от общего капитала в каждой отдельной сделке',
+                'Вкладывать 50% депозита в активы, которые советуют финансовые блогеры',
+                'Удваивать ставку каждый раз, когда предыдущая сделка закрылась в минус'
+              ],
+              correct: 0
+            },
+            {
+              q: '6. Как правильно рассчитывается размер позиции (объем входа в сделку)?',
+              options: [
+                'Он фиксирован для всех активов и равен 10 000 долларов',
+                'На основе эмоциональной уверенности: чем больше веришь в актив, тем больше позиция',
+                'Строго математически на основе дистанции от цены входа до уровня стоп-лосса, чтобы убыток при достижении стопа не превысил заложенный риск (например, 1% от депозита)'
+              ],
+              correct: 2
+            },
+            {
+              q: '7. Что показывает формула Математического ожидания (Expected Value / Edge) торговой системы?',
+              options: [
+                'Среднее время удержания позиции в часах',
+                'Преимущество системы на дистанции: (Вероятность победы × Средняя прибыль) минус (Вероятность убытка × Средний убыток)',
+                'Максимальное кредитное плечо, разрешенное биржей'
+              ],
+              correct: 1
+            },
+            {
+              q: '8. Почему винрейт (процент прибыльных сделок) сам по себе не гарантирует прибыльность системы?',
+              options: [
+                'Потому что биржа случайным образом блокирует успешные аккаунты',
+                'Можно иметь винрейт 80%, забирая копеечные прибыли, и слить весь депозит из-за одной редкой, но катастрофической убыточной сделки',
+                'Винрейт не учитывает фазы Луны, влияющие на рыночные циклы'
+              ],
+              correct: 1
+            },
+            {
+              q: '9. Какое отношение Риска к Прибыли (Risk-to-Reward Ratio, R:R) обеспечивает выживание системы даже при низком винрейте (например, 35%)?',
+              options: [
+                'Отрицательное: рисковать 3R ради получения 1R прибыли',
+                'Симметричное: 1R риска ради 1R прибыли',
+                'Асимметричное: рисковать 1R ради целевой прибыли минимум в 3R'
+              ],
+              correct: 2
+            },
+            {
+              q: '10. В чем заключается математическая фатальность метода усреднения убыточной позиции (стратегии Мартингейла) в трейдинге?',
+              options: [
+                'Вы увеличиваете размер риска в тот самый момент, когда рынок доказывает ошибочность вашей гипотезы, что неминуемо ведет к маржин-коллу при затяжном тренде',
+                'Этот метод требует слишком сложных вычислений, недоступных без мощного процессора',
+                'Усреднение запрещено правилами всех криптовалютных бирж'
+              ],
+              correct: 0
+            },
+            {
+              q: '11. Что такое пирамидинг в управлении позицией, в отличие от токсичного усреднения?',
+              options: [
+                'Покупка курсов по успешному успеху у инфоцыган',
+                'Добавление объема исключительно к прибыльной позиции, которая уже подтвердила правильность вашей гипотезы',
+                'Попытка отыграться сразу после серии убыточных сделок'
+              ],
+              correct: 1
+            },
+            {
+              q: '12. Какую иллюзию разбивает понятие системного риска (Systemic Risk) и высокой беты (коэффициента корреляции) на крипторынках?',
+              options: [
+                'Иллюзию анонимности биткоина',
+                'Иллюзию диверсификации: покупка 10 разных лонг-позиций по альткоинам не защитит, так как при макроэкономическом шоке все они упадут синхронно',
+                'Иллюзию отсутствия налогов на цифровые активы'
+              ],
+              correct: 1
+            },
+            {
+              q: '13. Для чего институциональные инвесторы используют метрику VaR (Value at Risk)?',
+              options: [
+                'Для прогнозирования точной цены биткоина в следующем году',
+                'Для генерации паролей к аппаратным кошелькам',
+                'Для оценки максимального ожидаемого убытка портфеля на заданном временном горизонте с определенной вероятностью'
+              ],
+              correct: 2
+            },
+            {
+              q: '14. В чем заключается главная слабость классической метрики VaR на финансовых рынках?',
+              options: [
+                'Она не работает в выходные дни',
+                'Она строится на нормальном распределении, игнорируя «толстые хвосты» (Fat Tails) — аномально высокую частоту экстремальных рыночных крахов (Черных лебедей)',
+                'Она требует ежемесячной платной подписки на Bloomberg Terminal'
+              ],
+              correct: 1
+            },
+            {
+              q: '15. Какое действие профессионалы применяют вместо слепого доверия классическому VaR для оценки хвостовых рисков портфеля?',
+              options: [
+                'Молятся богам удачи',
+                'Применяют стресс-тестирование: моделируют поведение портфеля в условиях исторических коллапсов ликвидности (например, мартовский крах 2020 года)',
+                'Полностью переводят капитал в наличные средства'
+              ],
+              correct: 1
+            }
+          ]
+        },
+        {
+          id: 6,
+          title: 'Поведенческая экономика: нейрофизиология искажений и иррациональность толпы под давлением',
+          shortTitle: 'Психология и Искажения',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Мы подошли к самой уязвимой компоненте любой сложной аналитической системы — к нейрофизиологии оператора. Ваш мозг, формировавшийся в эпоху палеолита для выживания в саванне, абсолютно не приспособлен к работе с абстрактными финансовыми вероятностями. Эволюционные механизмы, которые тысячелетиями спасали человека от хищников, на современных рынках капитала превращаются в фатальные баги. Вы можете в совершенстве знать математику риска из Модуля 5, но если в момент экстремальной рыночной волатильности управление вашими решениями перехватывает лимбическая система — вы гарантированно потеряете деньги. Этот модуль посвящен анатомии когнитивных искажений и протоколам отключения эмоций.</p>
+
+              <h3>1. Угон миндалины (Amygdala Hijack) и стрессовый паралич</h3>
+              <p>Миндалевидное тело (Амигдала) — это центр обработки страха и угроз в нашем мозге. Когда рынок резко обрушивается и открытая позиция стремительно уходит в минус, амигдала воспринимает падающие красные цифры на экране как прямую физическую угрозу жизни. В кровь выбрасываются кортизол и адреналин. Происходит нейрофизиологический феномен <strong>«Угон миндалины» (Amygdala Hijack)</strong>: лимбическая система блокирует работу префронтальной коры (зоны, отвечающей за логику, рациональный анализ и математический расчет). Аналитик теряет способность мыслить вероятностями. Он либо замирает (отказ резать убыток), либо паникует (закрывает позицию на самом дне). Единственный способ защиты — заранее запрограммированный алгоритмический план действий (торговая система и жесткий стоп-лосс), требующий механического исполнения, а не раздумий.</p>
+
+              <h3>2. Теория перспектив (Prospect Theory) и неприятие потерь</h3>
+              <p>Лауреаты Нобелевской премии Даниэль Канеман и Амос Тверски доказали, что экономический человек глубоко иррационален. Их <strong>Теория перспектив</strong> ввела концепцию <strong>неприятия потерь (Loss Aversion)</strong>. Нейробиологически доказано, что боль от потери 1000 долларов ощущается психикой в <strong>2.0 — 2.5 раза острее</strong>, чем удовольствие от выигрыша аналогичной суммы. Именно поэтому непрофессиональные трейдеры фиксируют мизерные прибыли (из страха, что цена развернется и отберет этот микро-доход) и годами пересиживают катастрофические убытки (отказываясь фиксировать боль). Профессионал алгоритмически инвертирует этот инстинкт: он быстро режет убытки на уровне 1% и хладнокровно позволяет прибыли расти, игнорируя эмоциональный дискомфорт.</p>
+
+              <h3>3. Ошибка невозвратных затрат (Sunk Cost Fallacy)</h3>
+              <p>Почему аналитик отказывается закрыть убыточную гипотезу даже при наличии очевидных доказательств её провала? Причина — <strong>Ошибка невозвратных затрат (Sunk Cost Fallacy)</strong>. Эго человека противится признанию ошибки, если в проект (или сделку) уже вложены значительные деньги, время и репутация. Трейдер убеждает себя: «Я уже потерял 20%, слишком поздно выходить, подожду отскока». Рынок не заботится о ваших прошлых затратах. Каждый момент времени — это новая точка отсчета. Холодная оценка требует вопроса: «Если бы у меня сейчас не было этой позиции, купил бы я этот актив по текущей цене?». Если ответ «нет» — позиция должна быть ликвидирована мгновенно, без оглядки на уже сгоревший капитал.</p>
+
+              <h3>4. Патология FOMO (Fear Of Missing Out)</h3>
+              <p><strong>FOMO (Страх упущенной выгоды)</strong> — это токсичная производная инстинкта социального подражания. Когда актив экспоненциально растет на 50-100% за несколько дней, медиа-пространство заполняется историями быстрого обогащения. В мозге неинвестировавшего зрителя активируется социальная боль (отставание от стаи) и жадность. Не выдержав психологического давления, дилетант покупает актив на самом пике вертикального пампа — в точке максимального риска и минимального математического ожидания. Профессионал знает, что покупать вертикальные свечи — это спонсировать «выходную ликвидность» умному капиталу, который набирал позицию на стадии скучного накопления.</p>
+
+              <h3>5. FUD, Капитуляция и эффект толпы (Herding Effect)</h3>
+              <p>Зеркальное отражение FOMO — это <strong>FUD (Fear, Uncertainty, Doubt - Страх, Неопределенность и Сомнение)</strong>. На медвежьем рынке, после длительного падения, наступает фаза Капитуляции. Информационный фон кричит о «смерти крипты» или коллапсе экономики. Лимбическая система запускает стадный инстинкт (<strong>Herding Effect</strong>): «все бегут, значит и мне нужно бежать». Толпа синхронно продает активы по самым низким ценам. В этот момент истинные кризис-аналитики (Smart Money) начинают агрессивную аккумуляцию активов, скупая кровь на улицах. Интеллектуальная изоляция от толпы и медиа-шума — обязательный навык выживания.</p>
+
+              <h3>6. Предвзятость подтверждения (Confirmation Bias)</h3>
+              <p>Мозг ленив и стремится экономить энергию, поэтому он страдает <strong>Предвзятостью подтверждения (Confirmation Bias)</strong>. Открыв позицию, трейдер неосознанно начинает искать в информационном потоке только те новости, графики и мнения аналитиков, которые подтверждают его правоту. Любые негативные метрики, ончейн-данные о выводе капитала или фундаментальные сигналы разворота мозг автоматически игнорирует как «шум» или «манипуляцию китов». Академическая контрмера: профессионал должен сознательно искать информацию, разрушающую его гипотезу. Задача аналитика — не доказывать свою правоту, а пытаться найти слабое звено в собственной модели (Стресс-тест гипотезы).</p>
+
+              <h3>7. Иллюзия контроля и Ошибка недавнего (Recency Bias)</h3>
+              <p>После серии из трех-четырех случайных прибыльных сделок у оператора неизбежно возникает <strong>Иллюзия контроля</strong> — ложная уверенность в том, что он понял алгоритм рынка и обрел дар предвидения. Это сопровождается <strong>Ошибкой недавнего (Recency Bias)</strong>: мозг проецирует недавний успех бесконечно в будущее, игнорируя долгосрочную статистику. Результатом становится смертельная комбинация: трейдер отключает риск-менеджмент, берет кросс-маржу с плечом 50x и заходит в сделку «на всю котлету» (All-in). Закономерная статистическая дисперсия (одна убыточная сделка) обнуляет аккаунт гения.</p>
+
+              <h3>8. Процедурная дисциплина и алгоритмизация психики</h3>
+              <p>Вы не сможете полностью отключить эмоции — мы биологические машины. Но вы можете выстроить архитектуру процесса, в которой эмоции не имеют доступа к терминалу. <strong>Процедурная дисциплина</strong> означает, что 90% работы аналитика совершается ДО входа в рынок: расчет рисков, сценарное планирование, определение стоп-аутов и тейк-профитов. Когда позиция открыта, вы превращаетесь в алгоритм-исполнитель. Вы не принимаете решений под давлением текущей цены. Вы лишь механически исполняете алгоритм: сработал стоп — фиксация, достигнута цель — фиксация. В больших данных побеждает тот, кто наиболее стабилен в исполнении скучной математики, независимо от выбросов адреналина.</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">🔬 Академическое резюме Модуля 06</div>
+                <p style="margin-bottom: 0; color: #ffffff;">Главный враг вашего капитала смотрит на вас из зеркала. Поведенческая экономика доказывает: в стрессовых ситуациях вы будете иррациональны, трусливы при фиксации прибыли и безрассудны при удержании убытков. Единственный антидот против нейрофизиологических багов — это алгоритмизация торгового процесса, абсолютное игнорирование социального шума и механическое исполнение риск-менеджмента до того, как кортизол парализует вашу префронтальную кору.</p>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Какой нейробиологический процесс описывается термином «Угон миндалины» (Amygdala Hijack) при сильном рыночном стрессе?',
+              options: [
+                'Ускорение математических вычислений в уме',
+                'Блокировка работы префронтальной коры (рационального анализа) лимбической системой при восприятии финансовых убытков как угрозы жизни',
+                'Процесс выработки эндорфинов после успешной сделки'
+              ],
+              correct: 1
+            },
+            {
+              q: '2. Что утверждает концепция «Неприятия потерь» (Loss Aversion) в Теории перспектив Канемана и Тверски?',
+              options: [
+                'Что люди предпочитают рисковать только заемными средствами',
+                'Что психологическая боль от финансовой потери в 2–2.5 раза острее, чем удовольствие от эквивалентного выигрыша',
+                'Что человек вообще не испытывает эмоций при потере денег, если он использует криптовалюту'
+              ],
+              correct: 1
+            },
+            {
+              q: '3. К какому разрушительному поведению на рынке приводит неприятие потерь у новичков?',
+              options: [
+                'Они быстро фиксируют убытки и позволяют прибыли расти',
+                'Они удаляют торговый терминал и уходят в монастырь',
+                'Они слишком рано закрывают прибыльные позиции из страха их потерять, и годами пересиживают убытки, отказываясь признать ошибку'
+              ],
+              correct: 2
+            },
+            {
+              q: '4. Какое когнитивное искажение заставляет аналитика удерживать заведомо убыточную позицию только потому, что в неё уже вложено много денег и времени?',
+              options: [
+                'Эффект Даннинга-Крюгера',
+                'Ошибка невозвратных затрат (Sunk Cost Fallacy)',
+                'Закон Мура'
+              ],
+              correct: 1
+            },
+            {
+              q: '5. Как профессионал алгоритмически нейтрализует Ошибку невозвратных затрат при оценке просадочной позиции?',
+              options: [
+                'Задает себе вопрос: «Если бы у меня не было этой позиции, купил бы я актив по текущей цене сейчас?» и, если ответ «нет», закрывает позицию мгновенно',
+                'Перестает проверять баланс счета до конца года',
+                'Берет микрокредит для усреднения позиции'
+              ],
+              correct: 0
+            },
+            {
+              q: '6. Какова механика возникновения синдрома FOMO (Страха упущенной выгоды) на финансовых рынках?',
+              options: [
+                'Тщательный анализ годовых отчетов компании перед покупкой акций',
+                'Активация социальной боли от отставания от толпы, вынуждающая дилетанта покупать актив на пике вертикального роста',
+                'Программная ошибка в интерфейсе криптовалютного кошелька'
+              ],
+              correct: 1
+            },
+            {
+              q: '7. Кому фактически передают свои деньги (выступают «выходной ликвидностью») толпы, поддавшиеся FOMO и покупающие на самом верху?',
+              options: [
+                'Умному капиталу (Smart Money) и инсайдерам, которые аккумулировали актив заранее и теперь разгружают его в руки опоздавшей толпы',
+                'Майнерам, обслуживающим блокчейн',
+                'Благотворительным организациям по спасению дельфинов'
+              ],
+              correct: 0
+            },
+            {
+              q: '8. Что аббревиатура FUD (Fear, Uncertainty, Doubt) означает в фазе рыночной капитуляции?',
+              options: [
+                'Financial Ultimate Dividend (Финансовый Максимальный Дивиденд)',
+                'Информационный фон страха, неопределенности и сомнений, подталкивающий толпу продавать активы на самом дне (локальных минимумах)',
+                'Алгоритм высокочастотного трейдинга'
+              ],
+              correct: 1
+            },
+            {
+              q: '9. Как проявляется Предвзятость подтверждения (Confirmation Bias) у трейдера после открытия сделки?',
+              options: [
+                'Он начинает видеть только ту информацию (новости, графики), которая подтверждает его гипотезу, игнорируя очевидные сигналы против его позиции как «шум»',
+                'Он полностью прекращает чтение новостей',
+                'Он начинает подтверждать каждую транзакцию с помощью биометрии'
+              ],
+              correct: 0
+            },
+            {
+              q: '10. Какой академический метод используется для борьбы с Предвзятостью подтверждения в аналитике?',
+              options: [
+                'Сознательный и целенаправленный поиск информации, разрушающей собственную гипотезу (Стресс-тест модели)',
+                'Блокировка всех аналитиков, имеющих противоположное мнение',
+                'Повторение аффирмаций об успешном успехе'
+              ],
+              correct: 0
+            },
+            {
+              q: '11. Что такое стадный инстинкт (Herding Effect) в поведенческой экономике?',
+              options: [
+                'Алгоритмический сбор комиссий в пулах ликвидности',
+                'Добровольное отключение критического мышления и синхронное повторение иррациональных действий толпы из-за ощущения ложной безопасности',
+                'Инвестирование исключительно в акции сельскохозяйственных компаний'
+              ],
+              correct: 1
+            },
+            {
+              q: '12. К чему обычно приводит Ошибка недавнего (Recency Bias) в комбинации с Иллюзией контроля после серии случайных прибыльных сделок?',
+              options: [
+                'К немедленному выводу всей прибыли и уходу с рынка навсегда',
+                'К отключению риск-менеджмента, завышению маржинального плеча и, как следствие, к полному обнулению депозита на первой же дисперсии',
+                'К написанию докторской диссертации по экономике'
+              ],
+              correct: 1
+            },
+            {
+              q: '13. Каким образом процедурная дисциплина позволяет обойти нейрофизиологические ограничения мозга (лимбическую систему) в трейдинге?',
+              options: [
+                'За счет принятия 90% аналитических и математических решений ДО входа в рынок, оставляя на фазу удержания позиции лишь механическое исполнение плана',
+                'За счет принятия энергетических напитков перед открытием терминала',
+                'За счет постоянной смены торговой стратегии каждую неделю'
+              ],
+              correct: 0
+            },
+            {
+              q: '14. Где, согласно поведенческой экономике, находится главная уязвимость любой сложной инвестиционной системы?',
+              options: [
+                'В пропускной способности оптоволоконного кабеля',
+                'В нейрофизиологии оператора (трейдера), чей мозг палеолита склонен к фатальным эмоциональным сбоям под давлением',
+                'В неправильно выбранной цветовой теме терминала'
+              ],
+              correct: 1
+            },
+            {
+              q: '15. Какова роль стоп-лосса с точки зрения психологии принятия решений?',
+              options: [
+                'Запрограммированный алгоритмический план действий, требующий механического исполнения для защиты капитала до того, как кортизол парализует способность резать убытки',
+                'Эмоциональное наказание за плохой анализ графиков',
+                'Инструмент для увеличения налогооблагаемой базы трейдера'
+              ],
+              correct: 0
+            }
+          ]
+        },
+        {
+          id: 7,
+          title: 'Финальный стресс-тест: Анатомия исторических катастроф и психология коллапса',
+          shortTitle: 'Стресс-тест и Катастрофы',
+          isFinal: false,
+          contentHTML: `
+            <div class="longread">
+              <p>Финальный рубеж. Синтез пройденных дисциплин. Если вы дошли до седьмого модуля, вы интеллектуально превосходите 99% участников рынка. Но сухая теория мертва без понимания исторического контекста и поведения институциональных игроков в моменты системного коллапса. Настоящий кризис-аналитик формируется не на бычьем рынке, где каждый дилетант мнит себя финансовым гением, а в моменты экзистенциального ужаса, когда рушатся вековые банки, перманентно испаряется ликвидность, и весь мир охватывает животная паника.</p>
+
+              <h3>1. Иллюзия ликвидности и крах моделей (по фильму «Маржин Колл»)</h3>
+              <p>Картина «Маржин Колл» (Margin Call) блестяще иллюстрирует крах корпоративного риск-менеджмента. В центре сюжета — инвестиционный банк, чья математическая модель оценки рисков (VaR — Value at Risk) внезапно показывает, что историческая волатильность активов на балансе превысила все заложенные пороги. Институциональные модели подвели, потому что не учитывали «толстые хвосты» (Fat Tails) распределения и беспрецедентные отклонения. Главный принцип выживания на Уолл-стрит в момент кризиса звучит предельно цинично: <strong>«Будь первым, будь умнее или обманывай»</strong>. Институция выбирает быть первой: руководство инициирует принудительную распродажу (Fire Sale) токсичных активов своим же клиентам и партнерам.</p>
+
+              <p>Репутация банка уничтожается за один день, но математически он выживает, сбросив радиоактивный риск на контрагентов. Аналитик должен усвоить фундаментальный урок: когда музыка останавливается, ликвидность в книге ордеров исчезает перманентно. Спасается не тот, кто ждет подтверждения тренда, а тот, кто выходит в деньги (кеш) до начала всеобщей паники.</p>
+
+              <h3>2. Системная слепота и конфликт интересов (по фильму «Игра на понижение»)</h3>
+              <p>«Игра на понижение» (The Big Short) детально препарирует анатомию системной слепоты и извращенных стимулов. Мировой кризис 2008 года был спровоцирован CDO (обеспеченными долговыми обязательствами), базирующимися на мусорной (субпрайм) ипотеке. Банкиры наивно полагали, что рынки недвижимости в разных штатах Америки не коррелируют между собой. Это была фатальная <strong>иллюзия диверсификации</strong>. Когда дефолты заемщиков стали массовыми, корреляция между ипотечными пулами стремительно приблизилась к абсолютной единице (Systemic Risk).</p>
+
+              <p>Почему система не била тревогу? Из-за преступного конфликта интересов. Рейтинговые агентства (S&P, Moody's), которые должны были выступать независимыми аудиторами, получали прибыль напрямую от создателей этих деривативов. В результате они бесперебойно присваивали токсичным мусорным траншам наивысший рейтинг безопасности AAA. Герой фильма Майкл Бьюрри нашел истину не в красивых презентациях и не в сводках телевизионных новостей. Он пришел к своему выводу благодаря скрупулезному чтению сотен страниц сырых проспектов эмиссии (первичных данных), обнаружив, что фундамент системы гнилой.</p>
+
+              <h3>3. Риск платежеспособности и Синтетические деривативы</h3>
+              <p>Бьюрри также столкнулся с колоссальным психологическим и финансовым давлением: он оказался прав, но слишком рано. В финансовом мире быть правым раньше времени часто эквивалентно неправоте. Удержание короткой позиции (шорта) против рынка недвижимости требовало регулярной выплаты многомиллионных страховых премий. Эта ситуация идеально описывает <strong>риск платежеспособности (Solvency Risk)</strong>: иррациональные рынки могут оставаться иррациональными гораздо дольше, чем вы сможете поддерживать маржинальное обеспечение своей позиции.</p>
+
+              <p>Масштаб катастрофы 2008 года был возведен в абсолют благодаря <strong>Синтетическим CDO</strong>. Это инструменты абсурда — деривативы, выпущенные на основе других деривативов. Если классический CDO состоял из реальных ипотечных кредитов, то синтетический состоял из кредитных дефолтных свопов (CDS) на эти CDO. Это математически умножило риски в десятки раз, превратив локальный кризис невыплат в глобальный экономический коллапс. Чем выше уровень абстракции финансового инструмента от реального актива, тем более разрушительным будет схлопывание пузыря.</p>
+
+              <h3>4. Манипуляция розничной толпой (по фильму «Волк с Уолл-стрит»)</h3>
+              <p>Третий обязательный материал — «Волк с Уолл-стрит» (The Wolf of Wall Street). За фасадом корпоративного разврата скрывается жестокая, циничная механика манипуляции неквалифицированной розничной толпой. Брокерская фирма Стрэттон Окмонт использовала классическую нелегальную схему <strong>Pump and Dump (Накачка и Сброс)</strong> на рынке грошовых микрокапитализированных акций (Penny Stocks). Манипуляторы заранее скупали мусорные активы, а затем через холодные звонки агрессивно «впаривали» их доверчивым клиентам, искусственно взвинчивая цену (Pump). На пике эйфории организаторы сбрасывали свои портфели (Dump).</p>
+
+              <p>Почему толпа раз за разом покупала откровенный мусор? Из-за примитивной человеческой жадности, желания быстрого обогащения и эмоционального давления брокеров, генерирующих искусственный дефицит и синдром FOMO. В любой подобной схеме розничный инвестор всегда выступает в роли конечной <strong>«выходной ликвидности» (Exit Liquidity)</strong>. Этот же хищнический алгоритм сегодня ежедневно воспроизводится на рынках низколиквидных альткоинов и мем-токенов.</p>
+
+              <h3>5. Моральный риск (Moral Hazard) и ваша персональная защита</h3>
+              <p>Любой системный кризис вскрывает феномен <strong>Морального риска (Moral Hazard)</strong>. Когда правительства спасают крупные корпорации и банки от банкротства за счет денег налогоплательщиков (Bailout), они посылают рынку опасный сигнал: «Вы можете брать на себя безумные неограниченные риски, потому что вы слишком велики, чтобы рухнуть (Too Big To Fail)». Это стимулирует систему к еще большей безответственности в будущем. Но помните: вас никто спасать не будет. Вы, как независимый аналитик, не имеете права рассчитывать на помощь государства или биржи. Ваша единственная линия защиты — это маниакальный контроль объема позиции и жесткий, автоматизированный стоп-лосс.</p>
+
+              <p>Во время затяжных бычьих рынков (Bull Runs) голос риск-менеджеров в корпорациях всегда заглушается агрессивным отделом продаж. Причина проста: риск-менеджеры генерируют для фирмы издержки, а трейдеры генерируют миллионные бонусы. Эта корпоративная шизофрения ведет к тому, что предупреждения об опасности игнорируются вплоть до наступления маржин-колла. Ваша задача — быть безжалостным внутренним риск-менеджером для собственного капитала 24 часа в сутки.</p>
+
+              <div class="strict-requirement-box">
+                <div class="strict-requirement-header">🎬 Обязательное домашнее задание (Стресс-тест)</div>
+                <p style="margin-bottom: 12px; color: #ffffff;">Вы обязаны проанализировать три нижеперечисленные картины не как развлекательное кино, а как документальные хроники человеческой жадности и иррациональности. После просмотра вы должны успешно пройти финальный академический тест из 15 вопросов. Рынок ждет ваших ошибок.</p>
+                <div class="platform-badges">
+                  <span class="platform-pill">«Игра на понижение»</span>
+                  <span class="platform-pill">«Маржин Колл»</span>
+                  <span class="platform-pill">«Волк с Уолл-стрит»</span>
+                </div>
+              </div>
+            </div>
+          `,
+          questions: [
+            {
+              q: '1. Какой циничный корпоративный принцип выживания выбрало руководство инвестбанка в фильме «Маржин Колл» при осознании краха?',
+              options: [
+                '«Будь первым, будь умнее или обманывай» — они выбрали быть первыми, устроив принудительную распродажу активов контрагентам',
+                '«Никогда не сдавайся» — они решили удерживать позиции до победного конца',
+                '«Клиент всегда прав» — они компенсировали убытки всем вкладчикам из своего кармана'
+              ],
+              correct: 0
+            },
+            {
+              q: '2. Почему хваленая математическая модель оценки рисков (VaR) полностью провалилась в сюжете «Маржин Колл»?',
+              options: [
+                'Она была написана на устаревшем языке программирования',
+                'Она не учитывала беспрецедентные отклонения и «толстые хвосты» (Fat Tails) распределения, опираясь лишь на прошлую историческую волатильность',
+                'Компьютер был заражен вирусом-вымогателем'
+              ],
+              correct: 1
+            },
+            {
+              q: '3. Какое фундаментальное правило ликвидности должен усвоить кризис-аналитик на случай рыночной паники?',
+              options: [
+                'Ликвидность всегда возвращается через 24 часа',
+                'Центральный банк всегда выкупит ваши убыточные активы по рыночной цене',
+                'Когда музыка останавливается, ликвидность в книге ордеров исчезает перманентно. Спасается тот, кто выходит в кеш до начала паники'
+              ],
+              correct: 2
+            },
+            {
+              q: '4. Какая математическая иллюзия ослепила банкиров при создании пулов ипотечных CDO в преддверии кризиса 2008 года («Игра на понижение»)?',
+              options: [
+                'Иллюзия диверсификации: они ошибочно полагали, что рынки недвижимости в разных регионах не коррелируют друг с другом',
+                'Иллюзия контроля времени: они думали, что сутки длятся 25 часов',
+                'Иллюзия инфляции: они верили, что доллар обеспечен золотом'
+              ],
+              correct: 0
+            },
+            {
+              q: '5. По какой причине независимые рейтинговые агентства (S&P, Moody\'s) продолжали присваивать мусорным траншам наивысший рейтинг AAA?',
+              options: [
+                'Из-за некомпетентности рядовых сотрудников',
+                'Из-за прямого конфликта интересов: они получали прибыль и оплату услуг напрямую от банков-создателей этих деривативов',
+                'Потому что правительство угрожало им отзывом лицензий'
+              ],
+              correct: 1
+            },
+            {
+              q: '6. Каким образом герой Майкл Бьюрри обнаружил истинную гниль ипотечного пузыря, в отличие от остальных участников рынка?',
+              options: [
+                'Он подслушал разговор инсайдеров в ресторане',
+                'Он опирался на скрупулезное чтение сотен страниц сырых первичных данных (проспектов эмиссии), а не на медийные сводки и чужие презентации',
+                'Он использовал квантовый компьютер для взлома баз данных'
+              ],
+              correct: 1
+            },
+            {
+              q: '7. Какой психологический и финансовый барьер (Риск платежеспособности) пришлось преодолевать Бьюрри, пока он ждал коллапса рынка?',
+              options: [
+                'Быть правым раньше времени часто эквивалентно неправоте: иррациональные рынки заставляли его выплачивать огромные страховые премии за удержание позиции',
+                'Его лишили водительских прав за превышение скорости',
+                'Он не мог вывести деньги из-за забытого пароля'
+              ],
+              correct: 0
+            },
+            {
+              q: '8. Какой финансовый инструмент возвел кризис 2008 года в абсолют, умножив риски системы в десятки раз?',
+              options: [
+                'Обычные государственные облигации',
+                'Синтетические CDO — абсурдные деривативы, базовым активом которых выступали другие деривативы (кредитные дефолтные свопы)',
+                'Рынок потребительских микрозаймов'
+              ],
+              correct: 1
+            },
+            {
+              q: '9. Какая нелегальная рыночная схема лежала в основе обогащения брокеров фирмы Стрэттон Окмонт («Волк с Уолл-стрит»)?',
+              options: [
+                'Схема Pump and Dump (Накачка и Сброс) на рынке низколиквидных грошовых акций',
+                'Высокочастотный арбитраж между биржами Токио и Нью-Йорка',
+                'Легальный выпуск корпоративных зеленых облигаций'
+              ],
+              correct: 0
+            },
+            {
+              q: '10. За счет чего брокерам удавалось массово продавать розничной толпе откровенный финансовый мусор?',
+              options: [
+                'Они предоставляли детальные аудиторские отчеты, доказывающие прибыльность компаний',
+                'Они эксплуатировали примитивную жадность, желание быстрого обогащения и эмоциональное давление (создание FOMO)',
+                'Они дарили каждому клиенту бесплатный автомобиль'
+              ],
+              correct: 1
+            },
+            {
+              q: '11. В какую роль неизбежно превращается неквалифицированный розничный инвестор в любой схеме Pump and Dump?',
+              options: [
+                'В управляющего партнера хедж-фонда',
+                'В маркет-мейкера, получающего процент от комиссий',
+                'В конечную «выходную ликвидность» (Exit Liquidity) для умного капитала и манипуляторов'
+              ],
+              correct: 2
+            },
+            {
+              q: '12. Что описывает феномен Морального риска (Moral Hazard) в макроэкономике?',
+              options: [
+                'Запрет на использование нецензурной лексики в торговом терминале',
+                'Ситуацию, когда спасение корпораций за счет государства (Bailout) стимулирует их к еще большей безответственности, так как они считают себя «Слишком большими, чтобы рухнуть»',
+                'Склонность трейдеров жертвовать часть прибыли на благотворительность'
+              ],
+              correct: 1
+            },
+            {
+              q: '13. Почему в корпоративной среде во время затяжного бычьего рынка (Bull Run) голос риск-менеджеров всегда игнорируется?',
+              options: [
+                'Потому что риск-менеджеры генерируют издержки и говорят о негативе, в то время как отдел продаж приносит текущие миллионные бонусы',
+                'Потому что риск-менеджеры говорят на иностранном языке',
+                'Потому что риск-менеджмент запрещен законодательством большинства стран'
+              ],
+              correct: 0
+            },
+            {
+              q: '14. Какова единственная надежная линия защиты индивидуального аналитика в условиях системного кризиса и отсутствия государственных спасений (Bailouts)?',
+              options: [
+                'Чтение позитивных финансовых блогов',
+                'Маниакальный контроль объема позиции и жесткий, автоматизированный стоп-лосс',
+                'Молитва и вера в долгосрочный рост мировой экономики'
+              ],
+              correct: 1
+            },
+            {
+              q: '15. Какие три картины составляют обязательный список академического стресс-теста в рамках седьмого модуля?',
+              options: [
+                '«Игра на понижение», «Маржин Колл», «Волк с Уолл-стрит»',
+                '«Мстители», «Железный человек», «Тор»',
+                '«Матрица», «Терминатор», «Аватар»'
+              ],
+              correct: 0
+            }
+          ]
+        },
+        {
+          id: 8,
+          title: 'Финальный допуск: Закрытый контур APEX EHO',
+          shortTitle: 'Финальный допуск',
+          isFinal: true
+        }
+      ];
+
+      // ============================================================================
+      // УПРАВЛЕНИЕ СОСТОЯНИЕМ (LOCALSTORAGE STATE ENGINE)
+      // ============================================================================
+      const defaultState = {
+        isAuthenticated: false,
+        unlockedModule: 1,   // Максимальный открытый модуль (1..8)
+        activeModule: 1,     // Текущий выбранный модуль в UI
+        completedModules: [] // Массив ID успешно сданных модулей
+      };
+
+      let appState = loadState();
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return { ...defaultState };
+          const parsed = JSON.parse(raw);
+          return {
+            isAuthenticated: Boolean(parsed.isAuthenticated),
+            unlockedModule: Number(parsed.unlockedModule) || 1,
+            activeModule: Number(parsed.activeModule) || 1,
+            completedModules: Array.isArray(parsed.completedModules) ? parsed.completedModules : []
+          };
+        } catch (err) {
+          return { ...defaultState };
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        } catch (err) {
+          console.error('Ошибка записи состояния в localStorage:', err);
+        }
+      }
+
+      // ============================================================================
+      // ССЫЛКИ НА DOM-ЭЛЕМЕНТЫ
+      // ============================================================================
+      const authScreen = document.getElementById('auth-screen');
+      const authForm = document.getElementById('auth-form');
+      const authPasswordInput = document.getElementById('auth-password');
+      const authErrorMsg = document.getElementById('auth-error');
+
+      const appDashboard = document.getElementById('app-dashboard');
+      const sidebar = document.getElementById('sidebar');
+      const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+      const hamburgerBtn = document.getElementById('hamburger-btn');
+      const moduleNav = document.getElementById('module-nav');
+      const progressLabel = document.getElementById('progress-label');
+      const progressFill = document.getElementById('progress-fill');
+      const contentRoot = document.getElementById('content-root');
+      const resetSessionBtn = document.getElementById('reset-session-btn');
+
+      const screenFlash = document.getElementById('screen-flash');
+      const modalOverlay = document.getElementById('modal-overlay');
+      const modalBox = document.getElementById('modal-box');
+      const modalIcon = document.getElementById('modal-icon');
+      const modalTitle = document.getElementById('modal-title');
+      const modalText = document.getElementById('modal-text');
+      const modalCloseBtn = document.getElementById('modal-close-btn');
+
+      // ============================================================================
+      // ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
+      // ============================================================================
+      function initApp() {
+        if (appState.isAuthenticated) {
+          authScreen.classList.add('hidden');
+          appDashboard.classList.add('visible');
+          renderDashboard();
+        } else {
+          authScreen.classList.remove('hidden');
+          appDashboard.classList.remove('visible');
+        }
+      }
+
+      // ============================================================================
+      // ЛОГИКА АВТОРИЗАЦИИ
+      // ============================================================================
+      authForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const enteredKey = authPasswordInput.value.trim();
+
+        if (enteredKey === ACCESS_PASSKEY) {
+          authErrorMsg.classList.remove('visible');
+          appState.isAuthenticated = true;
+          saveState();
+
+          authScreen.classList.add('hidden');
+          appDashboard.classList.add('visible');
+          renderDashboard();
+        } else {
+          // Неверный пароль: тряска (shake) и красное свечение
+          authPasswordInput.classList.remove('input-error');
+          void authPasswordInput.offsetWidth; // принудительный reflow для перезапуска анимации
+          authPasswordInput.classList.add('input-error');
+          authErrorMsg.classList.add('visible');
+
+          setTimeout(() => {
+            authPasswordInput.classList.remove('input-error');
+          }, 500);
+        }
+      });
+
+      // Сброс контура (выход)
+      resetSessionBtn.addEventListener('click', function () {
+        localStorage.removeItem(STORAGE_KEY);
+        appState = { ...defaultState };
+        authPasswordInput.value = '';
+        closeMobileSidebar();
+        initApp();
+      });
+
+      // ============================================================================
+      // МОБИЛЬНОЕ МЕНЮ (ГАМБУРГЕР)
+      // ============================================================================
+      function toggleMobileSidebar() {
+        sidebar.classList.toggle('open');
+        sidebarBackdrop.classList.toggle('open');
+      }
+
+      function closeMobileSidebar() {
+        sidebar.classList.remove('open');
+        sidebarBackdrop.classList.remove('open');
+      }
+
+      hamburgerBtn.addEventListener('click', toggleMobileSidebar);
+      sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+
+      // ============================================================================
+      // РЕНДЕРИНГ ДАШБОРДА, НАВИГАЦИИ И АКТИВНОГО МОДУЛЯ
+      // ============================================================================
+      function renderDashboard() {
+        // Проверка безопасности: не позволяем открыть заблокированный модуль
+        if (appState.activeModule > appState.unlockedModule) {
+          appState.activeModule = appState.unlockedModule;
+          saveState();
+        }
+
+        renderSidebar();
+        renderModuleContent(appState.activeModule);
+      }
+
+      function renderSidebar() {
+        const completedCount = appState.completedModules.length;
+        const percent = Math.min(100, Math.round((completedCount / 7) * 100));
+        progressLabel.textContent = `${completedCount} / 7`;
+        progressFill.style.width = `${percent}%`;
+
+        moduleNav.innerHTML = '';
+
+        MODULES_DATA.forEach((mod) => {
+          const isUnlocked = mod.id <= appState.unlockedModule;
+          const isCompleted = appState.completedModules.includes(mod.id);
+          const isActive = mod.id === appState.activeModule;
+
+          const li = document.createElement('li');
+          li.className = 'module-nav-item';
+          if (isActive) li.classList.add('active');
+          if (!isUnlocked) li.classList.add('locked');
+
+          let statusSymbol = '🔒';
+          if (isCompleted) {
+            statusSymbol = '✅';
+          } else if (isUnlocked) {
+            statusSymbol = mod.isFinal ? '⚡' : '●';
+          }
+
+          li.innerHTML = `
+            <div class="module-nav-left">
+              <span class="module-index">Модуль 0${mod.id}</span>
+              <span class="module-name">${mod.shortTitle}</span>
+            </div>
+            <span class="module-icon">${statusSymbol}</span>
+          `;
+
+          if (isUnlocked) {
+            li.addEventListener('click', () => {
+              appState.activeModule = mod.id;
+              saveState();
+              closeMobileSidebar();
+              renderDashboard();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+          }
+
+          moduleNav.appendChild(li);
+        });
+      }
+
+      function renderModuleContent(moduleId) {
+        const mod = MODULES_DATA.find((m) => m.id === moduleId);
+        if (!mod) return;
+
+        // Перезапуск анимации появления контента
+        contentRoot.style.animation = 'none';
+        void contentRoot.offsetWidth;
+        contentRoot.style.animation = 'fadeInSlideUp 0.55s var(--ease-ios)';
+
+        // Если это Финальная Воронка (Модуль 8)
+        if (mod.isFinal) {
+          contentRoot.innerHTML = `
+            <article class="glass-card funnel-hero">
+              <div class="module-tag">Финальный протокол // Допуск к ядру получен</div>
+              <h1 class="module-title">Академический рубеж пройден. Добро пожаловать в реальность.</h1>
+              <p class="funnel-quote">
+                «Вы прошли через методологическую мясорубку. 99% кандидатов ломаются на этапе осознания собственной иррациональности или сжигают депозиты из-за неконтролируемого кредитного плеча. Вы доказали свою интеллектуальную стрессоустойчивость и академическую дисциплину. 
+                <br><br>
+                Но сухая теория без практики — это лишь интеллектуальная гимнастика. Теперь настало время столкнуться с сырым, токсичным и беспощадным рынком. Мы допускаем вас в закрытый контур APEX EHO. Здесь нет учебных счетов и права на эмоциональную слабость. Здесь вас ждут реальные алгоритмы, инсайдерские графы ликвидности и жесткий институциональный поток ордеров. Оставьте эго за порогом. Оперируйте вероятностями. Защищайте капитал. Игра начинается.»
+              </p>
+              <div class="funnel-condition">
+                СТАТУС: Аттестация подтверждена. Доступ в VIP-канал разблокирован.
+              </div>
+              <div class="funnel-cta-group">
+                <a href="https://i.ibb.co/whQKm3q0/photo-2026-10-29-17-12-51.jpg" target="_blank" class="btn-cert">Скачать сертификат</a>
+                <a href="https://t.me/APEX_CURATOR" target="_blank" class="btn-deposit">Перейти в рабочий канал</a>
+              </div>
+            </article>
+          `;
+          return;
+        }
+
+        // Стандартный образовательный модуль (1–7) со скрытым тестом
+        const isPassed = appState.completedModules.includes(mod.id);
+
+        const questionsHTML = mod.questions
+          .map((qItem, qIdx) => {
+            const optionsHTML = qItem.options
+              .map(
+                (optText, optIdx) => `
+                <label class="option-label">
+                  <input type="radio" name="q_${qIdx}" value="${optIdx}" />
+                  <span>${optText}</span>
+                </label>
+              `
+              )
+              .join('');
+
+            return `
+              <div class="question-card">
+                <div class="question-title">${qItem.q}</div>
+                <div class="options-list">${optionsHTML}</div>
+              </div>
+            `;
+          })
+          .join('');
+
+        contentRoot.innerHTML = `
+          <article class="glass-card">
+            <div class="module-tag">
+              <span>Модуль 0${mod.id} из 08</span>
+              ${isPassed ? '<span>• Аттестация сдана ✓</span>' : '<span>• Ожидает аттестации</span>'}
+            </div>
+            <h1 class="module-title">${mod.title}</h1>
+
+            ${mod.contentHTML}
+
+            <div class="test-trigger-wrap">
+              <button id="open-quiz-btn" class="btn-neon">
+                Я изучил материал, готов к тесту
+              </button>
+            </div>
+
+            <div id="quiz-drawer" class="quiz-drawer">
+              <form id="quiz-form">
+                ${questionsHTML}
+                <button type="submit" class="btn-neon">Проверить</button>
+              </form>
+            </div>
+          </article>
+        `;
+
+        // Привязка обработчиков раскрытия и проверки теста
+        const openQuizBtn = document.getElementById('open-quiz-btn');
+        const quizDrawer = document.getElementById('quiz-drawer');
+        const quizForm = document.getElementById('quiz-form');
+
+        openQuizBtn.addEventListener('click', () => {
+          quizDrawer.classList.add('open');
+          setTimeout(() => {
+            quizDrawer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 150);
+        });
+
+        quizForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          evaluateQuiz(mod, quizForm);
+        });
+      }
+
+      // ============================================================================
+      // МЕХАНИКА ЖЕСТКОГО ТЕСТИРОВАНИЯ (БЕСПОЩАДНЫЙ СБРОС ИЛИ РАЗБЛОКИРОВКА)
+      // ============================================================================
+      function evaluateQuiz(mod, formElement) {
+        let isAllCorrect = true;
+
+        mod.questions.forEach((qItem, qIdx) => {
+          const selected = formElement.querySelector(`input[name="q_${qIdx}"]:checked`);
+          if (!selected || Number(selected.value) !== qItem.correct) {
+            isAllCorrect = false;
+          }
+        });
+
+        if (!isAllCorrect) {
+          // БЕСПОЩАДНЫЙ СБРОС: обнуляем все выбранные радио-кнопки
+          formElement.reset();
+
+          // Кратковременная заливка экрана красным стеклянным свечением
+          triggerScreenFlash('red');
+
+          // Модальное окно со строгим предупреждением
+          showModal({
+            type: 'error',
+            icon: '⚠️',
+            title: 'Критическая ошибка аттестации',
+            message:
+              'Ошибка в ответах. Вы проявили невнимательность. В больших данных и аналитике это стоит критических потерь. Пройдите тест заново'
+          });
+        } else {
+          // УСПЕШНАЯ СДАЧА
+          triggerScreenFlash('green');
+
+          if (!appState.completedModules.includes(mod.id)) {
+            appState.completedModules.push(mod.id);
+          }
+
+          const nextModuleId = Math.min(8, mod.id + 1);
+          if (appState.unlockedModule < nextModuleId) {
+            appState.unlockedModule = nextModuleId;
+          }
+          appState.activeModule = nextModuleId;
+          saveState();
+
+          showModal({
+            type: 'success',
+            icon: '⚡',
+            title: 'Аттестация пройдена',
+            message: `Рубежный контроль Модуля 0${mod.id} успешно сдан. Доступ к Модулю 0${nextModuleId} разблокирован.`,
+            onConfirm: () => {
+              renderDashboard();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          });
+        }
+      }
+
+      function triggerScreenFlash(color) {
+        screenFlash.className = 'screen-flash';
+        void screenFlash.offsetWidth;
+        screenFlash.classList.add(color === 'red' ? 'flash-red' : 'flash-green');
+
+        setTimeout(() => {
+          screenFlash.className = 'screen-flash';
+        }, 700);
+      }
+
+      let modalCallback = null;
+
+      function showModal({ type, icon, title, message, onConfirm }) {
+        modalBox.className = 'modal-box ' + (type === 'error' ? 'modal-error' : 'modal-success');
+        modalIcon.textContent = icon;
+        modalTitle.textContent = title;
+        modalText.textContent = message;
+        modalCallback = typeof onConfirm === 'function' ? onConfirm : null;
+        modalOverlay.classList.add('active');
+      }
+
+      modalCloseBtn.addEventListener('click', () => {
+        modalOverlay.classList.remove('active');
+        if (modalCallback) {
+          const cb = modalCallback;
+          modalCallback = null;
+          cb();
+        }
+      });
+
+      // Запуск приложения
+      window.onload = function () {
+        initApp();
+      };
+    })();
+  </script>
+</body>
+</html>
